@@ -92,7 +92,12 @@ class SmsReceiver : BroadcastReceiver() {
         }
 
         val sent = sendSms(context, destination, card)
-        if (!sent) CardStore.returnCard(context, amount, card)
+        if (!sent) {
+            CardStore.returnCard(context, amount, card)
+        } else {
+            val remaining = CardStore.count(context, amount)
+            StockNotification.notifyIfLow(context, amount, remaining)
+        }
     }
 
     private fun sendSms(context: Context, phone: String, card: String): Boolean {
