@@ -67,6 +67,7 @@ class MainActivity : Activity() {
         nav.addView(navButton("الرئيسية"){showDashboard()})
         nav.addView(navButton("إضافة"){showAddCards()})
         nav.addView(navButton("الفئات"){showCategories()})
+        nav.addView(navButton("الربط"){showAlternateNumbers()})
         nav.addView(navButton("المخزون"){showStock()})
         nav.addView(navButton("المبيعات"){showSales()})
         nav.addView(navButton("النسخ"){showBackup()})
@@ -110,6 +111,7 @@ class MainActivity : Activity() {
 
         addSectionTitle("إدارة الفئات")
         addButton("إضافة فئة كروت جديدة") { showCategories() }
+        addButton("ربط رقم بديل برقم جوال") { showAlternateNumbers() }
         addSectionTitle("إدارة المخزون")
         addButton("عرض أرقام الكروت المتبقية لكل فئة") { showStock() }
 
@@ -259,6 +261,64 @@ class MainActivity : Activity() {
         CardStore.categories(this).forEach { amount ->
             addText("• " + amount + " ريال — " + CardStore.count(this, amount) + " كرت")
         }
+    }
+
+    private fun showAlternateNumbers() {
+        currentScreen = "alternate_numbers"
+        content.removeAllViews()
+        addBackButton()
+        addTitle("ربط الأرقام البديلة")
+        addText("إذا وصلت رسالة جيب برقم بديل مثل 164783، اربطه برقم الجوال الحقيقي. سيُستخدم نفس الربط لجميع فئات الكروت.")
+        val alternate = EditText(this).apply {
+            hint = "الرقم البديل مثل 164783"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            textSize = 18f
+            setTextColor(Color.rgb(25,25,25))
+            gravity = Gravity.RIGHT
+        }
+        val phone = EditText(this).apply {
+            hint = "رقم الجوال مثل 772072056"
+            inputType = android.text.InputType.TYPE_CLASS_PHONE
+            textSize = 18f
+            setTextColor(Color.rgb(25,25,25))
+            gravity = Gravity.RIGHT
+        }
+        content.addView(alternate)
+        content.addView(phone)
+        addButton("حفظ الربط") {
+            val a = alternate.text.toString().trim()
+            val p = phone.text.toString().trim()
+            if (a.length < 4 || p.length != 9 || !p.startsWith("7")) {
+                Toast.makeText(this, "تأكد من الرقم البديل ورقم الجوال", Toast.LENGTH_LONG).show()
+            } else {
+                ContactMap.setPhone(this, a, p)
+                Toast.makeText(this, "تم ربط $a بالرقم $p لجميع الفئات", Toast.LENGTH_LONG).show()
+                alternate.setText("")
+                phone.setText("")
+                renderAlternateNumbers()
+            }
+        }
+        addSectionTitle("الروابط المحفوظة")
+        renderAlternateNumbers()
+    }
+
+    private fun renderAlternateNumbers() {
+        val markerView = content.findViewWithTag<View>("alternate_list")
+        if (markerView != null) content.removeView(markerView)
+        val list = LinearLayout(this).apply {
+            tag = "alternate_list"
+            orientation = LinearLayout.VERTICAL
+        }
+        ContactMap.all(this).forEach { (a, p) ->
+            list.addView(TextView(this).apply {
+                text = "البديل: $a  ←  الجوال: $p"
+                textSize = 16f
+                setTextColor(Color.rgb(35,35,35))
+                setPadding(12,10,12,10)
+                setBackgroundColor(Color.WHITE)
+            }, LinearLayout.LayoutParams(-1,-2).apply { setMargins(0,0,0,6) })
+        }
+        content.addView(list)
     }
 
     private fun showStockAlertSettings() {
