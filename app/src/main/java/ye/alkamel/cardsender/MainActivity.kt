@@ -164,7 +164,7 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER_HORIZONTAL
             setPadding(22, 20, 22, 18)
-            background = roundedBackground(Color.rgb(25, 101, 163), 0f, 0)
+            background = roundedBackground(Color.rgb(25, 101, 163), 0, 0)
         }
 
         val logo = ImageView(this).apply {
@@ -712,7 +712,7 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER
             setTextColor(if (primary) Color.WHITE else Color.rgb(25, 92, 145))
             background = if (primary) {
-                roundedBackground(Color.rgb(37, 105, 164), 0f, 0)
+                roundedBackground(Color.rgb(37, 105, 164), 0, 0)
             } else {
                 roundedBackground(Color.WHITE, Color.rgb(205, 220, 232), 1.dp())
             }
