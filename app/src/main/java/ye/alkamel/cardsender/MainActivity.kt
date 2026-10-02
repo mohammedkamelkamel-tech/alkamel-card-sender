@@ -60,7 +60,7 @@ class MainActivity : Activity() {
 
     private fun showAddCards(){
         currentScreen = "add_cards"
-        content.removeAllViews();addTitle("إضافة الكروت");addText("اختر فئة الكرت، ثم الصق أرقام الكروت. كل رقم في سطر مستقل.")
+        content.removeAllViews();addBackButton();addTitle("إضافة الكروت");addText("اختر فئة الكرت، ثم الصق أرقام الكروت. كل رقم في سطر مستقل.")
         val spinner=Spinner(this);spinner.setBackgroundColor(Color.WHITE);spinner.adapter=ArrayAdapter(this,android.R.layout.simple_spinner_dropdown_item,CardStore.supportedAmounts.map{"$it ريال"});content.addView(spinner)
         val input=EditText(this).apply{hint="مثال:\n18466933\n10356433\n...";setTextColor(Color.rgb(25,25,25));setHintTextColor(Color.rgb(110,110,110));textSize=17f;minLines=10;gravity=Gravity.TOP or Gravity.RIGHT;inputType=android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE}
         content.addView(input,LinearLayout.LayoutParams(-1,0,1f))
@@ -70,7 +70,7 @@ class MainActivity : Activity() {
 
     private fun showSales(){
         currentScreen = "sales"
-        content.removeAllViews();addTitle("الكروت التي تم بيعها");val sales=CardStore.sales(this);addText("عدد المبيعات المسجلة: ${sales.size}")
+        content.removeAllViews();addBackButton();addTitle("الكروت التي تم بيعها");val sales=CardStore.sales(this);addText("عدد المبيعات المسجلة: ${sales.size}")
         if(sales.isEmpty()){addText("لا توجد مبيعات مسجلة حتى الآن.");return}
         sales.take(300).forEach{sale->
             val box=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(14,12,14,12);setBackgroundColor(Color.WHITE)}
@@ -82,11 +82,13 @@ class MainActivity : Activity() {
 
     private fun showBackup(){
         currentScreen = "backup"
-        content.removeAllViews();addTitle("النسخ الاحتياطية")
+        content.removeAllViews();addBackButton();addTitle("النسخ الاحتياطية")
         addText("النسخة اليومية تشمل الكروت المتبقية، الكروت المباعة، أرقام المستلمين، وتاريخ المبيعات وإعدادات التطبيق.")
         val last=getSharedPreferences("settings",MODE_PRIVATE).getString("last_backup","لم يتم إنشاء نسخة بعد");addText("آخر نسخة: $last")
         addButton("إنشاء نسخة احتياطية الآن"){val name=BackupManager.createBackup(this);Toast.makeText(this,if(name!=null)"تم حفظ النسخة داخل التنزيلات" else "فشل إنشاء النسخة",Toast.LENGTH_LONG).show();showBackup()}
     }
+
+    private fun addBackButton(){ addButton("رجوع إلى الرئيسية"){ showDashboard() } }
 
     private fun addTitle(text:String){content.addView(TextView(this).apply{this.text=text;textSize=23f;typeface=Typeface.DEFAULT_BOLD;setTextColor(Color.rgb(35,35,35));setPadding(0,12,0,10)})}
     private fun addSectionTitle(text:String){content.addView(TextView(this).apply{this.text=text;textSize=18f;typeface=Typeface.DEFAULT_BOLD;setTextColor(Color.rgb(45,45,45));setPadding(0,16,0,8)})}
