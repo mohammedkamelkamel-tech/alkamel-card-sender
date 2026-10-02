@@ -66,6 +66,7 @@ class MainActivity : Activity() {
         val nav=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;setPadding(8,8,8,8);setBackgroundColor(Color.WHITE)}
         nav.addView(navButton("الرئيسية"){showDashboard()})
         nav.addView(navButton("إضافة"){showAddCards()})
+        nav.addView(navButton("الفئات"){showCategories()})
         nav.addView(navButton("المخزون"){showStock()})
         nav.addView(navButton("المبيعات"){showSales()})
         nav.addView(navButton("النسخ"){showBackup()})
@@ -100,13 +101,15 @@ class MainActivity : Activity() {
         content.addView(dashboardSoldText)
 
         addSectionTitle("مخزون كل فئة بشكل مستقل")
-        CardStore.supportedAmounts.forEach { amount ->
+        CardStore.categories(this).forEach { amount ->
             val row = cardRow("$amount ريال", "0 كرت")
             val valueView = row.findViewWithTag<TextView>("stock_value")
             if (valueView != null) dashboardCategoryViews[amount] = valueView
             content.addView(row)
         }
 
+        addSectionTitle("إدارة الفئات")
+        addButton("إضافة فئة كروت جديدة") { showCategories() }
         addSectionTitle("إدارة المخزون")
         addButton("عرض أرقام الكروت المتبقية لكل فئة") { showStock() }
 
@@ -125,7 +128,7 @@ class MainActivity : Activity() {
     private fun refreshDashboardStock() {
         dashboardStockText?.text = "إجمالي الكروت المتبقية: ${CardStore.totalStock(this)} كرت"
         dashboardSoldText?.text = "إجمالي الكروت المباعة: ${CardStore.salesCount(this)} كرت"
-        CardStore.supportedAmounts.forEach { amount ->
+        CardStore.categories(this).forEach { amount ->
             dashboardCategoryViews[amount]?.text = "${CardStore.count(this, amount)} كرت متبقي"
         }
     }
@@ -133,11 +136,13 @@ class MainActivity : Activity() {
     private fun showAddCards(){
         currentScreen = "add_cards"
         content.removeAllViews();addBackButton();addTitle("إضافة الكروت");addText("اختر فئة الكرت، ثم الصق أرقام الكروت. كل رقم في سطر مستقل.")
-        val spinner=Spinner(this);spinner.setBackgroundColor(Color.WHITE);spinner.adapter=ArrayAdapter(this,android.R.layout.simple_spinner_dropdown_item,CardStore.supportedAmounts.map{"$it ريال"});content.addView(spinner)
+        val categories = CardStore.categories(this)
+        if (categories.isEmpty()) { addText("أضف فئة أولًا من قسم الفئات."); return }
+        val spinner=Spinner(this);spinner.setBackgroundColor(Color.WHITE);spinner.adapter=ArrayAdapter(this,android.R.layout.simple_spinner_dropdown_item,categories.map{"$it ريال"});content.addView(spinner)
         val input=EditText(this).apply{hint="مثال:\n18466933\n10356433\n...";setTextColor(Color.rgb(25,25,25));setHintTextColor(Color.rgb(110,110,110));textSize=17f;minLines=10;gravity=Gravity.TOP or Gravity.RIGHT;inputType=android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE}
         content.addView(input,LinearLayout.LayoutParams(-1,0,1f))
-        addButton("حفظ الكروت"){val amount=CardStore.supportedAmounts[spinner.selectedItemPosition];val added=CardStore.addCards(this,amount,input.text.toString());Toast.makeText(this,if(added>0)"تم حفظ $added كرت من فئة $amount ريال" else "لم يتم العثور على أرقام كروت صحيحة",Toast.LENGTH_LONG).show();if(added>0)input.setText("")}
-        addText("المخزون الحالي: "+CardStore.supportedAmounts.joinToString(" | "){"$it=${CardStore.count(this,it)}"})
+        addButton("حفظ الكروت"){val amount=categories[spinner.selectedItemPosition];val added=CardStore.addCards(this,amount,input.text.toString());Toast.makeText(this,if(added>0)"تم حفظ $added كرت من فئة $amount ريال" else "لم يتم العثور على أرقام كروت صحيحة",Toast.LENGTH_LONG).show();if(added>0)input.setText("")}
+        addText("المخزون الحالي: "+categories.joinToString(" | "){"$it=${CardStore.count(this,it)}"})
     }
 
     private fun showStock() {
@@ -145,12 +150,14 @@ class MainActivity : Activity() {
         content.removeAllViews()
         addBackButton()
         addTitle("مخزون الكروت")
+        val categories = CardStore.categories(this)
+        if (categories.isEmpty()) { addText("لا توجد فئات. أضف فئة من قسم الفئات."); return }
         addText("اختر الفئة لعرض أرقام الكروت المتبقية. الأرقام الموجودة هنا هي التي لم تُبع بعد.")
 
         val spinner = Spinner(this)
         spinner.setBackgroundColor(Color.WHITE)
         spinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item,
-            CardStore.supportedAmounts.map { amount -> "$amount ريال — ${CardStore.count(this, amount)} كرت" })
+            categories.map { amount -> "$amount ريال — ${CardStore.count(this, amount)} كرت" })
         content.addView(spinner)
 
         val cardsContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
@@ -158,7 +165,7 @@ class MainActivity : Activity() {
 
         fun renderCards() {
             cardsContainer.removeAllViews()
-            val amount = CardStore.supportedAmounts[spinner.selectedItemPosition]
+            val amount = categories[spinner.selectedItemPosition]
             val cards = CardStore.cards(this, amount)
 
             cardsContainer.addView(TextView(this).apply {
@@ -217,6 +224,41 @@ class MainActivity : Activity() {
         }
 
         renderCards()
+    }
+
+    private fun showCategories() {
+        currentScreen = "categories"
+        content.removeAllViews()
+        addBackButton()
+        addTitle("إدارة فئات الكروت")
+        addText("أضف أي فئة تريدها يدويًا. بعد الحفظ ستظهر تلقائيًا في الإضافة والمخزون والإرسال والتنبيهات والنسخ الاحتياطي.")
+        val input = EditText(this).apply {
+            hint = "اكتب قيمة الفئة مثل 300"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            textSize = 18f
+            setTextColor(Color.rgb(25,25,25))
+            setHintTextColor(Color.rgb(110,110,110))
+            gravity = Gravity.RIGHT
+        }
+        content.addView(input)
+        addButton("حفظ وإضافة الفئة") {
+            val amount = input.text.toString().trim().toIntOrNull()
+            if (amount == null || amount <= 0) {
+                Toast.makeText(this, "أدخل رقم فئة صحيح أكبر من صفر", Toast.LENGTH_LONG).show()
+            } else if (CardStore.categories(this).contains(amount)) {
+                Toast.makeText(this, "هذه الفئة موجودة بالفعل", Toast.LENGTH_LONG).show()
+            } else {
+                CardStore.addCategory(this, amount)
+                StockNotification.setThreshold(this, amount, 20)
+                Toast.makeText(this, "تمت إضافة فئة " + amount + " ريال", Toast.LENGTH_SHORT).show()
+                input.setText("")
+                showCategories()
+            }
+        }
+        addSectionTitle("الفئات الحالية")
+        CardStore.categories(this).forEach { amount ->
+            addText("• " + amount + " ريال — " + CardStore.count(this, amount) + " كرت")
+        }
     }
 
     private fun showStockAlertSettings() {
