@@ -22,7 +22,7 @@ class MainActivity : Activity() {
         }
 
         val title = TextView(this).apply {
-            text = "إدارة كروت الكامل"
+            text = "الكامل أونلاين"
             textSize = 26f
             setPadding(0, 0, 0, 20)
         }
