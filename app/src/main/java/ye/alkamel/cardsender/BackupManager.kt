@@ -50,7 +50,7 @@ object BackupManager {
         val settings = buildString {
             append("app=الكامل أونلاين\n")
             append("version=1.1.0\n")
-            CardStore.categories(this).forEach { amount ->
+            CardStore.categories(context).forEach { amount ->
                 append("stock_alert_threshold_$amount=${StockNotification.getThreshold(context, amount)}\n")
             }
         }
