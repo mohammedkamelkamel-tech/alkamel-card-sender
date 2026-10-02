@@ -70,7 +70,7 @@ class SmsReceiver : BroadcastReceiver() {
             val smsManager = SmsManager.getDefault()
             val parts = smsManager.divideMessage(card)
             if (parts.size == 1) smsManager.sendTextMessage(phone, null, card, null, null)
-            else smsManager.sendMultipartTextMessage(phone, null, ArrayList(parts), null, null, null)
+            else smsManager.sendMultipartTextMessage(phone, null, ArrayList(parts), null, null)
             true
         } catch (e: Exception) {
             Log.e(TAG, "SMS send failed", e)
