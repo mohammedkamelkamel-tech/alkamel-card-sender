@@ -1,0 +1,8 @@
+name = "alkamel-license"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "alkamel-licenses"
+database_id = "REPLACE-WITH-D1-DATABASE-ID"

@@ -119,16 +119,30 @@ class MainActivity : Activity() {
         }, LinearLayout.LayoutParams(-1, -2))
 
         activateButton.setOnClickListener {
-            when (LicenseManager.activate(this, codeInput.text.toString())) {
-                "DAY" -> {
-                    Toast.makeText(this, "تم تفعيل التطبيق لمدة 24 ساعة", Toast.LENGTH_LONG).show()
-                    startApp()
+            val code = codeInput.text.toString().trim()
+            if (code.isBlank()) {
+                Toast.makeText(this, "أدخل كود التفعيل أولاً", Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+            activateButton.isEnabled = false
+            activateButton.text = "جاري التحقق من الكود..."
+            LicenseManager.activate(this, code) { result ->
+                runOnUiThread {
+                    activateButton.isEnabled = true
+                    activateButton.text = "تفعيل التطبيق"
+                    when (result) {
+                        is LicenseManager.Result.Success -> {
+                            val message = if (result.type == "DAY")
+                                "تم تفعيل التطبيق لمدة 24 ساعة على هذا الجهاز"
+                            else
+                                "تم تفعيل التطبيق مدى الحياة على هذا الجهاز"
+                            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                            startApp()
+                        }
+                        is LicenseManager.Result.Error ->
+                            Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
+                    }
                 }
-                "LIFE" -> {
-                    Toast.makeText(this, "تم تفعيل التطبيق مدى الحياة", Toast.LENGTH_LONG).show()
-                    startApp()
-                }
-                else -> Toast.makeText(this, "كود التفعيل غير صحيح", Toast.LENGTH_LONG).show()
             }
         }
 
