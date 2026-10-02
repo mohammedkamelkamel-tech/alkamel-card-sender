@@ -51,6 +51,14 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (!LicenseManager.isActivated(this)) {
+            showActivationScreen()
+            return
+        }
+        startApp()
+    }
+
+    private fun startApp() {
         setupBackupSchedule()
         requestPermissions()
         CardStore.initializeFiles(this)
@@ -58,11 +66,77 @@ class MainActivity : Activity() {
         showDashboard()
     }
 
+    private fun showActivationScreen() {
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(28, 28, 28, 28)
+            setBackgroundColor(Color.rgb(248,249,252))
+            layoutDirection = View.LAYOUT_DIRECTION_RTL
+        }
+        root.addView(TextView(this).apply {
+            text = "الكامل أونلاين"
+            textSize = 28f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(20,91,150))
+            gravity = Gravity.CENTER
+        }, LinearLayout.LayoutParams(-1, -2))
+        root.addView(TextView(this).apply {
+            text = "أدخل كود الشراء لتفعيل التطبيق"
+            textSize = 18f
+            setTextColor(Color.rgb(45,45,45))
+            gravity = Gravity.CENTER
+            setPadding(0, 12, 0, 18)
+        }, LinearLayout.LayoutParams(-1, -2))
+
+        val codeInput = EditText(this).apply {
+            hint = "مثال: D1-XXXXXXXXXXXX-XXXXXXXXXXXX"
+            textSize = 17f
+            gravity = Gravity.CENTER
+            setSingleLine(true)
+            setTextColor(Color.rgb(25,25,25))
+            setHintTextColor(Color.rgb(110,110,110))
+        }
+        root.addView(codeInput, LinearLayout.LayoutParams(-1, -2))
+
+        val activateButton = Button(this).apply {
+            text = "تفعيل التطبيق"
+            setTextColor(Color.WHITE)
+            setBackgroundColor(Color.rgb(35,95,150))
+        }
+        root.addView(activateButton, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 16, 0, 8) })
+
+        root.addView(TextView(this).apply {
+            text = "يوجد نوعان من الأكواد:\n• كود يوم واحد: يعمل 24 ساعة من أول تفعيل\n• كود مدى الحياة: لا تنتهي صلاحيته"
+            textSize = 14f
+            setTextColor(Color.rgb(70,70,70))
+            setPadding(0, 12, 0, 0)
+            gravity = Gravity.RIGHT
+        }, LinearLayout.LayoutParams(-1, -2))
+
+        activateButton.setOnClickListener {
+            when (LicenseManager.activate(this, codeInput.text.toString())) {
+                "DAY" -> {
+                    Toast.makeText(this, "تم تفعيل التطبيق لمدة 24 ساعة", Toast.LENGTH_LONG).show()
+                    startApp()
+                }
+                "LIFE" -> {
+                    Toast.makeText(this, "تم تفعيل التطبيق مدى الحياة", Toast.LENGTH_LONG).show()
+                    startApp()
+                }
+                else -> Toast.makeText(this, "كود التفعيل غير صحيح", Toast.LENGTH_LONG).show()
+            }
+        }
+
+        setContentView(root)
+    }
+
     private fun buildUi() {
         val root = LinearLayout(this).apply { orientation=LinearLayout.VERTICAL; setBackgroundColor(Color.rgb(248,249,252)); layoutDirection=View.LAYOUT_DIRECTION_RTL }
         val header = LinearLayout(this).apply { orientation=LinearLayout.VERTICAL; setPadding(28,32,28,20); setBackgroundColor(Color.rgb(20,91,150)) }
         header.addView(TextView(this).apply { text="الكامل أونلاين"; textSize=27f; typeface=Typeface.DEFAULT_BOLD; setTextColor(Color.WHITE) })
         header.addView(TextView(this).apply { text="إدارة مخزون الكروت والمبيعات والإرسال التلقائي"; textSize=14f; setTextColor(Color.WHITE) })
+        header.addView(TextView(this).apply { text=LicenseManager.remainingText(this@MainActivity); textSize=12f; setTextColor(Color.WHITE); setPadding(0,6,0,0) })
         val nav=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;setPadding(8,8,8,8);setBackgroundColor(Color.WHITE)}
         nav.addView(navButton("الرئيسية"){showDashboard()})
         nav.addView(navButton("إضافة"){showAddCards()})
