@@ -40,15 +40,15 @@ class SmsReceiver : BroadcastReceiver() {
         }
         if (messages.isEmpty()) return
 
-        // Some Yemen SMS gateways expose a numeric sender instead of the
-        // visible name (Jaib/Jawali). Therefore sender-name validation must
-        // not block an otherwise valid transfer message.
+        // SECURITY: card sending is allowed only when Android identifies the
+        // SMS sender as the trusted Jaib/Jawali sender name. A matching message
+        // body from any ordinary person must never trigger a card send.
         val originating = messages.firstOrNull()?.originatingAddress?.trim().orEmpty()
         val displayOriginating = messages.firstOrNull()?.displayOriginatingAddress?.trim().orEmpty()
         val senderHint = when {
             isTrustedSender(originating) -> normalizeSender(originating)
             isTrustedSender(displayOriginating) -> normalizeSender(displayOriginating)
-            else -> ""
+            else -> return
         }
 
         val body = messages.joinToString("") { it.messageBody ?: "" }.trim()
@@ -59,12 +59,10 @@ class SmsReceiver : BroadcastReceiver() {
         val isJaib = lower.contains("اضيف") && lower.contains("تحويل") && lower.contains("من")
         if (!isJawali && !isJaib) return
 
-        // If the gateway gives us a sender name, use it as an extra check.
-        // If it gives only a numeric/hidden sender, trust the exact SMS format.
-        if (senderHint.isNotBlank()) {
-            if (isJaib && senderHint != "jaib") return
-            if (isJawali && senderHint != "jawali") return
-        }
+        // The sender name is mandatory: Jaib messages must come from "jaib",
+        // and Jawali messages must come from "jawali".
+        if (isJaib && senderHint != "jaib") return
+        if (isJawali && senderHint != "jawali") return
 
         val categories = CardStore.categories(context)
         if (categories.isEmpty()) return
