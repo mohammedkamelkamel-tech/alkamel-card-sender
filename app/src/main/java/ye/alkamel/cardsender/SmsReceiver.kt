@@ -38,6 +38,19 @@ class SmsReceiver : BroadcastReceiver() {
         val messages = pdus.mapNotNull {
             try { SmsMessage.createFromPdu(it as ByteArray, format) } catch (_: Exception) { null }
         }
+        if (messages.isEmpty()) return
+
+        // Security: the message body alone is never enough to trigger a card send.
+        // Android exposes the originating SMS address even when the Messages app
+        // displays only a sender name such as "Jaib" or "Jawali".
+        val sender = messages.firstOrNull()?.originatingAddress?.trim()
+            ?: messages.firstOrNull()?.displayOriginatingAddress?.trim()
+            ?: return
+        if (!isTrustedSender(sender)) {
+            Log.d(TAG, "Ignoring SMS from untrusted sender: $sender")
+            return
+        }
+
         val body = messages.joinToString("") { it.messageBody ?: "" }.trim()
         if (body.isBlank()) return
 
@@ -45,6 +58,10 @@ class SmsReceiver : BroadcastReceiver() {
         val isJawali = lower.contains("استلمت") && lower.contains("yer")
         val isJaib = lower.contains("اضيف") && lower.contains("تحويل") && lower.contains("من")
         if (!isJawali && !isJaib) return
+
+        val normalizedSender = normalizeSender(sender)
+        if (isJaib && normalizedSender != "jaib") return
+        if (isJawali && normalizedSender != "jawali") return
 
         val categories = CardStore.categories(context)
         if (categories.isEmpty()) return
@@ -68,6 +85,14 @@ class SmsReceiver : BroadcastReceiver() {
         } else {
             CardStore.returnCard(context, amount, card)
         }
+    }
+
+    private fun normalizeSender(sender: String): String {
+        return sender.trim().lowercase().replace(" ", "").replace("-", "")
+    }
+
+    private fun isTrustedSender(sender: String): Boolean {
+        return normalizeSender(sender) == "jaib" || normalizeSender(sender) == "jawali"
     }
 
     private fun findAlternateDestination(context: Context, body: String): String? {
