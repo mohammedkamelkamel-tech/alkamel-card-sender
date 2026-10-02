@@ -7,6 +7,7 @@ import android.os.Looper
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
 import android.widget.*
@@ -150,90 +151,137 @@ class MainActivity : Activity() {
     }
 
     private fun buildUi() {
-        val root = LinearLayout(this).apply { orientation=LinearLayout.VERTICAL; setBackgroundColor(Color.rgb(248,249,252)); layoutDirection=View.LAYOUT_DIRECTION_RTL }
-        val header = LinearLayout(this).apply { orientation=LinearLayout.VERTICAL; setPadding(28,32,28,20); setBackgroundColor(Color.rgb(20,91,150)) }
-        header.addView(TextView(this).apply { text="الكامل أونلاين"; textSize=27f; typeface=Typeface.DEFAULT_BOLD; setTextColor(Color.WHITE) })
-        header.addView(TextView(this).apply { text="إدارة مخزون الكروت والمبيعات والإرسال التلقائي"; textSize=14f; setTextColor(Color.WHITE) })
-        header.addView(TextView(this).apply { text=LicenseManager.remainingText(this@MainActivity); textSize=12f; setTextColor(Color.WHITE); setPadding(0,6,0,0) })
-        // شريط القوائم مرتب من اليمين إلى اليسار، مع تمرير أفقي حتى لا
-        // تتكسر أسماء الأزرار إلى سطرين بسبب ضيق الشاشة.
+        window.statusBarColor = Color.rgb(18, 77, 126)
+        window.navigationBarColor = Color.rgb(248, 249, 252)
+
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.rgb(246, 248, 252))
+            layoutDirection = View.LAYOUT_DIRECTION_RTL
+        }
+
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(22, 20, 22, 18)
+            background = roundedBackground(Color.rgb(25, 101, 163), 0f, 0)
+        }
+
+        val logo = ImageView(this).apply {
+            setImageResource(ye.alkamel.cardsender.R.drawable.alkamel_logo)
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+        }
+        header.addView(logo, LinearLayout.LayoutParams(64.dp(), 64.dp()).apply {
+            bottomMargin = 4.dp()
+        })
+
+        header.addView(TextView(this).apply {
+            text = "الكامل أونلاين"
+            textSize = 28f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+        }, LinearLayout.LayoutParams(-1, -2))
+
+        header.addView(TextView(this).apply {
+            text = "إدارة مخزون الكروت والمبيعات والإرسال التلقائي"
+            textSize = 14f
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            setPadding(0, 4, 0, 0)
+        }, LinearLayout.LayoutParams(-1, -2))
+
+        header.addView(TextView(this).apply {
+            text = LicenseManager.remainingText(this@MainActivity)
+            textSize = 13f
+            setTextColor(Color.rgb(225, 241, 255))
+            gravity = Gravity.CENTER
+            setPadding(0, 7, 0, 0)
+        }, LinearLayout.LayoutParams(-1, -2))
+
         val navScroll = HorizontalScrollView(this).apply {
             setBackgroundColor(Color.WHITE)
             isHorizontalScrollBarEnabled = false
+            setPadding(7.dp(), 7.dp(), 7.dp(), 7.dp())
         }
         val nav = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             layoutDirection = View.LAYOUT_DIRECTION_RTL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(8,8,8,8)
         }
-        nav.addView(navButton("الرئيسية"){showDashboard()})
-        nav.addView(navButton("إضافة"){showAddCards()})
-        nav.addView(navButton("الفئات"){showCategories()})
-        nav.addView(navButton("الربط"){showAlternateNumbers()})
-        nav.addView(navButton("المخزون"){showStock()})
-        nav.addView(navButton("المبيعات"){showSales()})
-        nav.addView(navButton("النسخ"){showBackup()})
+        nav.addView(navButton("الرئيسية") { showDashboard() })
+        nav.addView(navButton("إضافة") { showAddCards() })
+        nav.addView(navButton("الفئات") { showCategories() })
+        nav.addView(navButton("الربط") { showAlternateNumbers() })
+        nav.addView(navButton("المخزون") { showStock() })
+        nav.addView(navButton("المبيعات") { showSales() })
+        nav.addView(navButton("النسخ") { showBackup() })
         navScroll.addView(nav, LinearLayout.LayoutParams(-2, -1))
-        
-        val scroll=ScrollView(this)
-        content=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(18,8,18,30)}
+
+        val scroll = ScrollView(this)
+        content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(14.dp(), 10.dp(), 14.dp(), 24.dp())
+            layoutDirection = View.LAYOUT_DIRECTION_RTL
+        }
         scroll.addView(content)
+
         val footer = TextView(this).apply {
             text = "حقوق محمد كامل - 772072056"
             textSize = 13f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            setTextColor(Color.rgb(90,90,90))
-            setPadding(8,10,8,10)
+            setTextColor(Color.rgb(90, 90, 90))
+            setPadding(8, 10, 8, 10)
             setBackgroundColor(Color.WHITE)
         }
 
         root.addView(header)
-        root.addView(navScroll, LinearLayout.LayoutParams(-1,62.dp()))
-        root.addView(scroll,LinearLayout.LayoutParams(-1,0,1f))
-        root.addView(footer, LinearLayout.LayoutParams(-1,-2))
+        root.addView(navScroll, LinearLayout.LayoutParams(-1, 64.dp()))
+        root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+        root.addView(footer, LinearLayout.LayoutParams(-1, -2))
         setContentView(root)
     }
 
-    private fun navButton(text:String,action:()->Unit)=Button(this).apply{
-        this.text=text
-        textSize=13f
-        minWidth=88.dp()
-        minimumWidth=88.dp()
-        minHeight=48.dp()
-        minimumHeight=48.dp()
+    private fun navButton(text: String, action: () -> Unit) = TextView(this).apply {
+        this.text = text
+        textSize = 14f
+        typeface = Typeface.DEFAULT_BOLD
+        gravity = Gravity.CENTER
         setSingleLine(true)
-        maxLines=1
-        setPadding(14,0,14,0)
-        setTextColor(Color.rgb(35,35,35))
-        setOnClickListener{action()}
-        layoutParams=LinearLayout.LayoutParams(-2,50.dp()).apply{setMargins(3,0,3,0)}
+        setTextColor(Color.rgb(30, 91, 143))
+        background = roundedBackground(Color.WHITE, Color.rgb(207, 220, 232), 1.dp())
+        setPadding(18.dp(), 0, 18.dp(), 0)
+        setOnClickListener { action() }
+        layoutParams = LinearLayout.LayoutParams(-2, 48.dp()).apply {
+            setMargins(4.dp(), 0, 4.dp(), 0)
+        }
     }
 
-    private fun showDashboard(){
+    private fun showDashboard() {
         currentScreen = "dashboard"
         content.removeAllViews()
         dashboardCategoryViews.clear()
+
         addTitle("لوحة التحكم")
+        addText("إدارة مخزون الكروت والمبيعات والإرسال التلقائي")
 
-        dashboardStockText = TextView(this).apply {
-            textSize = 16f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.rgb(35,35,35))
-            setPadding(0,8,0,4)
+        val stats = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutDirection = View.LAYOUT_DIRECTION_RTL
+            weightSum = 2f
         }
-        content.addView(dashboardStockText)
 
-        dashboardSoldText = TextView(this).apply {
-            textSize = 16f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.rgb(35,35,35))
-            setPadding(0,4,0,10)
-        }
-        content.addView(dashboardSoldText)
+        val stockCard = statCard("إجمالي الكروت المتبقية", "0 كرت", Color.rgb(25, 101, 163))
+        dashboardStockText = stockCard.second
+        val soldCard = statCard("إجمالي الكروت المباعة", "0 كرت", Color.rgb(37, 128, 91))
+        dashboardSoldText = soldCard.second
 
-        addSectionTitle("مخزون كل فئة بشكل مستقل")
+        stats.addView(stockCard.first, LinearLayout.LayoutParams(0, -2, 1f).apply { setMargins(0, 0, 5.dp(), 0) })
+        stats.addView(soldCard.first, LinearLayout.LayoutParams(0, -2, 1f).apply { setMargins(5.dp(), 0, 0, 0) })
+        content.addView(stats)
+
+        addSectionTitle("مخزون كل فئة")
         CardStore.categories(this).forEach { amount ->
             val row = cardRow("$amount ريال", "0 كرت")
             val valueView = row.findViewWithTag<TextView>("stock_value")
@@ -242,18 +290,23 @@ class MainActivity : Activity() {
         }
 
         addSectionTitle("إدارة الفئات")
-        addButton("إضافة فئة كروت جديدة") { showCategories() }
-        addButton("ربط رقم بديل برقم جوال") { showAlternateNumbers() }
+        addButton("إضافة فئة كروت جديدة", true) { showCategories() }
+        addButton("ربط رقم بديل برقم جوال", true) { showAlternateNumbers() }
+
         addSectionTitle("إدارة المخزون")
-        addButton("عرض أرقام الكروت المتبقية لكل فئة") { showStock() }
+        addButton("عرض أرقام الكروت المتبقية لكل فئة", true) { showStock() }
 
         addSectionTitle("اختصارات")
-        addButton("إضافة كروت جديدة") { showAddCards() }
-        addButton("معرفة الكروت التي تم بيعها") { showSales() }
-        addButton("إعدادات تنبيه نقص المخزون") { showStockAlertSettings() }
-        addButton("إنشاء نسخة احتياطية الآن") {
+        addButton("إضافة كروت جديدة", false) { showAddCards() }
+        addButton("معرفة الكروت التي تم بيعها", false) { showSales() }
+        addButton("إعدادات تنبيه نقص المخزون", false) { showStockAlertSettings() }
+        addButton("إنشاء نسخة احتياطية الآن", false) {
             val name = BackupManager.createBackup(this)
-            Toast.makeText(this, if(name != null) "تم حفظ النسخة في التنزيلات" else "تعذر إنشاء النسخة", Toast.LENGTH_LONG).show()
+            Toast.makeText(
+                this,
+                if (name != null) "تم حفظ النسخة في التنزيلات" else "تعذر إنشاء النسخة",
+                Toast.LENGTH_LONG
+            ).show()
         }
 
         refreshDashboardStock()
@@ -615,14 +668,122 @@ class MainActivity : Activity() {
         addButton("إنشاء نسخة احتياطية الآن"){val name=BackupManager.createBackup(this);Toast.makeText(this,if(name!=null)"تم حفظ النسخة داخل التنزيلات" else "فشل إنشاء النسخة",Toast.LENGTH_LONG).show();showBackup()}
     }
 
-    private fun addBackButton(){ addButton("رجوع إلى الرئيسية"){ showDashboard() } }
+    private fun addBackButton() {
+        addButton("رجوع إلى الرئيسية", false) { showDashboard() }
+    }
 
-    private fun addTitle(text:String){content.addView(TextView(this).apply{this.text=text;textSize=23f;typeface=Typeface.DEFAULT_BOLD;setTextColor(Color.rgb(35,35,35));setPadding(0,12,0,10)})}
-    private fun addSectionTitle(text:String){content.addView(TextView(this).apply{this.text=text;textSize=18f;typeface=Typeface.DEFAULT_BOLD;setTextColor(Color.rgb(45,45,45));setPadding(0,16,0,8)})}
-    private fun addText(text:String){content.addView(TextView(this).apply{this.text=text;textSize=15f;setTextColor(Color.rgb(45,45,45));setPadding(0,8,0,10)})}
-    private fun addButton(text:String,action:()->Unit){content.addView(Button(this).apply{this.text=text;setTextColor(Color.WHITE);setBackgroundColor(Color.rgb(35,95,150));setOnClickListener{action()}})}
-    private fun cardRow(title:String,value:String):View{return LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER_VERTICAL;setPadding(18,14,18,14);setBackgroundColor(Color.WHITE);addView(TextView(this@MainActivity).apply{text=title;textSize=16f;typeface=Typeface.DEFAULT_BOLD;setTextColor(Color.rgb(30,30,30))},LinearLayout.LayoutParams(0,-2,1f));addView(TextView(this@MainActivity).apply{text=value;tag="stock_value";textSize=16f;typeface=Typeface.DEFAULT_BOLD;setTextColor(Color.rgb(20,90,145))});layoutParams=LinearLayout.LayoutParams(-1,-2).apply{setMargins(0,0,0,6)}}}
+    private fun addTitle(text: String) {
+        content.addView(TextView(this).apply {
+            this.text = text
+            textSize = 25f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(24, 38, 52))
+            gravity = Gravity.RIGHT
+            setPadding(2.dp(), 14.dp(), 2.dp(), 4.dp())
+        })
+    }
+
+    private fun addSectionTitle(text: String) {
+        content.addView(TextView(this).apply {
+            this.text = text
+            textSize = 19f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(25, 75, 112))
+            gravity = Gravity.RIGHT
+            setPadding(2.dp(), 18.dp(), 2.dp(), 8.dp())
+        })
+    }
+
+    private fun addText(text: String) {
+        content.addView(TextView(this).apply {
+            this.text = text
+            textSize = 15f
+            setTextColor(Color.rgb(70, 80, 90))
+            gravity = Gravity.RIGHT
+            setPadding(2.dp(), 5.dp(), 2.dp(), 9.dp())
+        })
+    }
+
+    private fun addButton(text: String, primary: Boolean = false, action: () -> Unit) {
+        val button = TextView(this).apply {
+            this.text = text
+            textSize = 15f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setTextColor(if (primary) Color.WHITE else Color.rgb(25, 92, 145))
+            background = if (primary) {
+                roundedBackground(Color.rgb(37, 105, 164), 0f, 0)
+            } else {
+                roundedBackground(Color.WHITE, Color.rgb(205, 220, 232), 1.dp())
+            }
+            setPadding(16.dp(), 0, 16.dp(), 0)
+            setOnClickListener { action() }
+        }
+        content.addView(button, LinearLayout.LayoutParams(-1, 52.dp()).apply {
+            setMargins(0, 0, 0, 9.dp())
+        })
+    }
+
+    private fun statCard(title: String, initial: String, accent: Int): Pair<View, TextView> {
+        val box = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(12.dp(), 14.dp(), 12.dp(), 14.dp())
+            background = roundedBackground(Color.WHITE, Color.rgb(225, 231, 237), 1.dp())
+        }
+        box.addView(TextView(this).apply {
+            text = title
+            textSize = 13f
+            setTextColor(Color.rgb(85, 95, 105))
+            gravity = Gravity.CENTER
+        })
+        val value = TextView(this).apply {
+            text = initial
+            textSize = 21f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(accent)
+            gravity = Gravity.CENTER
+            setPadding(0, 6.dp(), 0, 0)
+        }
+        box.addView(value)
+        return Pair(box, value)
+    }
+
+    private fun cardRow(title: String, value: String): View {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(16.dp(), 12.dp(), 16.dp(), 12.dp())
+            background = roundedBackground(Color.WHITE, Color.rgb(225, 231, 237), 1.dp())
+            addView(TextView(this@MainActivity).apply {
+                text = title
+                textSize = 16f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.rgb(35, 45, 55))
+                gravity = Gravity.RIGHT
+            }, LinearLayout.LayoutParams(0, -2, 1f))
+            addView(TextView(this@MainActivity).apply {
+                text = value
+                tag = "stock_value"
+                textSize = 16f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.rgb(25, 100, 158))
+                gravity = Gravity.LEFT
+            })
+            layoutParams = LinearLayout.LayoutParams(-1, -2).apply {
+                setMargins(0, 0, 0, 7.dp())
+            }
+        }
+    }
+
+    private fun roundedBackground(fill: Int, stroke: Int, strokeWidth: Int): GradientDrawable =
+        GradientDrawable().apply {
+            setColor(fill)
+            cornerRadius = 12.dp().toFloat()
+            if (strokeWidth > 0) setStroke(strokeWidth, stroke)
+        }
+
     private fun setupBackupSchedule(){val request=PeriodicWorkRequestBuilder<BackupWorker>(1,TimeUnit.DAYS).build();WorkManager.getInstance(this).enqueueUniquePeriodicWork("alkamel_daily_backup",ExistingPeriodicWorkPolicy.KEEP,request)}
     private fun requestPermissions(){val needed=mutableListOf(Manifest.permission.RECEIVE_SMS,Manifest.permission.READ_SMS,Manifest.permission.SEND_SMS);if(android.os.Build.VERSION.SDK_INT>=33&&ContextCompat.checkSelfPermission(this,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)needed.add(Manifest.permission.POST_NOTIFICATIONS);val missing=needed.filter{ContextCompat.checkSelfPermission(this,it)!=PackageManager.PERMISSION_GRANTED};if(missing.isNotEmpty())ActivityCompat.requestPermissions(this,missing.toTypedArray(),requestCode)}
-    private fun Int.dp():Int=(this*resources.displayMetrics.density).toInt()
+    private fun Int.dp(): Int = (this * resources.displayMetrics.density).toInt()
 }
