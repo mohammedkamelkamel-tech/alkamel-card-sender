@@ -2,104 +2,124 @@ package ye.alkamel.cardsender
 
 import android.content.Context
 import android.provider.Settings
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
-import java.util.concurrent.Executors
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
 
-/** Server-backed license manager. A license is claimed atomically by the server against this device's Android ID. */
+/**
+ * Offline license manager.
+ *
+ * Important: without a server there is no shared state between phones.
+ * A code is therefore validated offline and locked locally to the first
+ * Android device that activates it. This prevents reuse on the same
+ * installation/device, but cannot prove to another phone that the code
+ * was already used.
+ */
 object LicenseManager {
     private const val PREFS = "license"
     private const val KEY_TYPE = "type"
     private const val KEY_EXPIRES_AT = "expires_at"
-    private const val KEY_TOKEN = "token"
+    private const val KEY_CODE = "code"
+    private const val KEY_DEVICE = "device"
+    private const val DAY_MS = 24L * 60L * 60L * 1000L
 
-    // Replace this after deploying server/cloudflare-worker/worker.js.
-    private const val SERVER_URL = "https://REPLACE-WITH-YOUR-LICENSE-SERVER.workers.dev"
-
-    private val executor = Executors.newSingleThreadExecutor()
+    // Kept inside the APK for fully offline validation.
+    // Offline activation cannot provide server-level anti-sharing security.
+    private const val SECRET = "AlKamel-Offline-License-2026-9F7C2A"
 
     fun isActivated(context: Context): Boolean {
-        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        return when (prefs.getString(KEY_TYPE, null)) {
+        val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val type = p.getString(KEY_TYPE, null) ?: return false
+        val device = deviceId(context)
+        if (p.getString(KEY_DEVICE, null) != device) return false
+        return when (type) {
             "LIFE" -> true
-            "DAY" -> prefs.getLong(KEY_EXPIRES_AT, 0L) > System.currentTimeMillis()
+            "DAY" -> p.getLong(KEY_EXPIRES_AT, 0L) > System.currentTimeMillis()
             else -> false
         }
     }
 
     fun activate(context: Context, rawCode: String, callback: (Result) -> Unit) {
         val code = rawCode.trim().uppercase()
-        if (!Regex("[DL]1-[0-9A-F]{12}-[0-9A-F]{12}").matches(code)) {
-            callback(Result.Error("صيغة كود التفعيل غير صحيحة"))
+        val parts = code.split("-")
+        if (parts.size != 3 ||
+            !parts[1].matches(Regex("[0-9A-F]{12}")) ||
+            !parts[2].matches(Regex("[0-9A-F]{12}"))) {
+            callback(Result.Error("كود التفعيل غير صحيح"))
             return
         }
 
-        executor.execute {
-            try {
-                val url = URL("$SERVER_URL/activate")
-                val connection = (url.openConnection() as HttpURLConnection).apply {
-                    requestMethod = "POST"
-                    connectTimeout = 10000
-                    readTimeout = 10000
-                    doOutput = true
-                    setRequestProperty("Content-Type", "application/json; charset=UTF-8")
-                }
-                val deviceId = Settings.Secure.getString(
-                    context.contentResolver,
-                    Settings.Secure.ANDROID_ID
-                ) ?: "unknown-device"
-                val body = JSONObject()
-                    .put("code", code)
-                    .put("deviceId", deviceId)
-                    .put("appVersion", "1.5.0")
-                    .toString()
-                connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
-
-                val status = connection.responseCode
-                val stream = if (status in 200..299) connection.inputStream else connection.errorStream
-                val response = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-                connection.disconnect()
-
-                if (status !in 200..299) {
-                    val message = runCatching { JSONObject(response).optString("message") }.getOrDefault("")
-                    callback(Result.Error(message.ifBlank { "تعذر تفعيل الكود" }))
-                    return@execute
-                }
-
-                val json = JSONObject(response)
-                val type = json.optString("type")
-                val expiresAt = json.optLong("expiresAt", 0L)
-                if (type != "DAY" && type != "LIFE") {
-                    callback(Result.Error("استجابة الخادم غير صالحة"))
-                    return@execute
-                }
-
-                context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-                    .putString(KEY_TYPE, type)
-                    .putString(KEY_TOKEN, code.substringAfter("-").substringBefore("-"))
-                    .putLong(KEY_EXPIRES_AT, expiresAt)
-                    .apply()
-
-                callback(Result.Success(type))
-            } catch (_: Exception) {
-                callback(Result.Error("تعذر الاتصال بخادم التفعيل. تحقق من الإنترنت وحاول مرة أخرى."))
+        val type = when (parts[0]) {
+            "D1" -> "DAY"
+            "L1" -> "LIFE"
+            else -> {
+                callback(Result.Error("كود التفعيل غير صحيح"))
+                return
             }
         }
+
+        if (!parts[2].equals(sign(type, parts[1]), ignoreCase = true)) {
+            callback(Result.Error("كود التفعيل غير صحيح"))
+            return
+        }
+
+        val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val device = deviceId(context)
+        val savedCode = p.getString(KEY_CODE, null)
+        val savedDevice = p.getString(KEY_DEVICE, null)
+
+        if (savedCode != null && savedCode != code) {
+            callback(Result.Error("يوجد كود تفعيل آخر مرتبط بهذا الجهاز"))
+            return
+        }
+        if (savedCode == code && savedDevice != device) {
+            callback(Result.Error("هذا الكود مرتبط بجهاز آخر"))
+            return
+        }
+
+        val now = System.currentTimeMillis()
+        val expires = if (type == "DAY") {
+            if (savedCode == code) p.getLong(KEY_EXPIRES_AT, 0L)
+            else now + DAY_MS
+        } else 0L
+
+        if (type == "DAY" && expires <= now) {
+            callback(Result.Error("انتهت صلاحية كود اليوم"))
+            return
+        }
+
+        p.edit()
+            .putString(KEY_TYPE, type)
+            .putString(KEY_CODE, code)
+            .putString(KEY_DEVICE, device)
+            .putLong(KEY_EXPIRES_AT, expires)
+            .apply()
+
+        callback(Result.Success(type))
     }
 
     fun remainingText(context: Context): String {
-        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        return when (prefs.getString(KEY_TYPE, null)) {
+        val p = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        return when (p.getString(KEY_TYPE, null)) {
             "LIFE" -> "ترخيص مدى الحياة"
             "DAY" -> {
-                val left = (prefs.getLong(KEY_EXPIRES_AT, 0L) - System.currentTimeMillis()).coerceAtLeast(0L)
+                val left = (p.getLong(KEY_EXPIRES_AT, 0L) - System.currentTimeMillis()).coerceAtLeast(0L)
                 val hours = left / 3_600_000L
                 val minutes = (left / 60_000L) % 60L
                 "متبقي من الترخيص: $hours ساعة و$minutes دقيقة"
             }
             else -> "غير مفعل"
         }
+    }
+
+    private fun deviceId(context: Context): String =
+        Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: "unknown"
+
+    private fun sign(type: String, token: String): String {
+        val mac = Mac.getInstance("HmacSHA256")
+        mac.init(SecretKeySpec(SECRET.toByteArray(Charsets.UTF_8), "HmacSHA256"))
+        val payload = "$type|$token"
+        val bytes = mac.doFinal(payload.toByteArray(Charsets.UTF_8))
+        return bytes.joinToString("") { "%02X".format(it) }.take(12)
     }
 
     sealed class Result {
