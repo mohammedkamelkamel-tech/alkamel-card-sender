@@ -165,7 +165,21 @@ class MainActivity : Activity() {
         val scroll=ScrollView(this)
         content=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(18,8,18,30)}
         scroll.addView(content)
-        root.addView(header);root.addView(navScroll, LinearLayout.LayoutParams(-1,62.dp()));root.addView(scroll,LinearLayout.LayoutParams(-1,0,1f));setContentView(root)
+        val footer = TextView(this).apply {
+            text = "حقوق محمد كامل - 772072056"
+            textSize = 13f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setTextColor(Color.rgb(90,90,90))
+            setPadding(8,10,8,10)
+            setBackgroundColor(Color.WHITE)
+        }
+
+        root.addView(header)
+        root.addView(navScroll, LinearLayout.LayoutParams(-1,62.dp()))
+        root.addView(scroll,LinearLayout.LayoutParams(-1,0,1f))
+        root.addView(footer, LinearLayout.LayoutParams(-1,-2))
+        setContentView(root)
     }
 
     private fun navButton(text:String,action:()->Unit)=Button(this).apply{
