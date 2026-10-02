@@ -2,6 +2,8 @@ package ye.alkamel.cardsender
 import android.Manifest
 import android.app.Activity
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.Typeface
@@ -20,8 +22,31 @@ class MainActivity : Activity() {
     private lateinit var content: LinearLayout
     private var currentScreen = "dashboard"
 
+    private var dashboardStockText: TextView? = null
+    private var dashboardSoldText: TextView? = null
+    private val dashboardCategoryViews = mutableMapOf<Int, TextView>()
+
+    private val refreshHandler = Handler(Looper.getMainLooper())
+    private val stockRefreshRunnable = object : Runnable {
+        override fun run() {
+            if (currentScreen == "dashboard") refreshDashboardStock()
+            refreshHandler.postDelayed(this, 1000)
+        }
+    }
+
     override fun onBackPressed() {
         if (currentScreen != "dashboard") showDashboard() else super.onBackPressed()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        refreshHandler.removeCallbacks(stockRefreshRunnable)
+        refreshHandler.post(stockRefreshRunnable)
+    }
+
+    override fun onPause() {
+        refreshHandler.removeCallbacks(stockRefreshRunnable)
+        super.onPause()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,7 +64,11 @@ class MainActivity : Activity() {
         header.addView(TextView(this).apply { text="الكامل أونلاين"; textSize=27f; typeface=Typeface.DEFAULT_BOLD; setTextColor(Color.WHITE) })
         header.addView(TextView(this).apply { text="إدارة مخزون الكروت والمبيعات والإرسال التلقائي"; textSize=14f; setTextColor(Color.WHITE) })
         val nav=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;setPadding(8,8,8,8);setBackgroundColor(Color.WHITE)}
-        nav.addView(navButton("الرئيسية"){showDashboard()}); nav.addView(navButton("إضافة كروت"){showAddCards()}); nav.addView(navButton("المبيعات"){showSales()}); nav.addView(navButton("النسخ الاحتياطية"){showBackup()})
+        nav.addView(navButton("الرئيسية"){showDashboard()})
+        nav.addView(navButton("إضافة"){showAddCards()})
+        nav.addView(navButton("المخزون"){showStock()})
+        nav.addView(navButton("المبيعات"){showSales()})
+        nav.addView(navButton("النسخ"){showBackup()})
         val scroll=ScrollView(this)
         content=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(18,8,18,30)}
         scroll.addView(content)
@@ -50,12 +79,54 @@ class MainActivity : Activity() {
 
     private fun showDashboard(){
         currentScreen = "dashboard"
-        content.removeAllViews();addTitle("لوحة التحكم")
-        addText("إجمالي الكروت المتبقية: ${CardStore.totalStock(this)}\nإجمالي الكروت المباعة: ${CardStore.salesCount(this)}")
-        addSectionTitle("المخزون حسب الفئة")
-        CardStore.supportedAmounts.forEach{amount->content.addView(cardRow("$amount ريال","${CardStore.count(this,amount)} كرت"))}
-        addSectionTitle("اختصارات");addButton("إضافة كروت جديدة"){showAddCards()};addButton("معرفة الكروت التي تم بيعها"){showSales()}
-        addButton("إنشاء نسخة احتياطية الآن"){val name=BackupManager.createBackup(this);Toast.makeText(this,if(name!=null)"تم حفظ النسخة في التنزيلات" else "تعذر إنشاء النسخة",Toast.LENGTH_LONG).show()}
+        content.removeAllViews()
+        dashboardCategoryViews.clear()
+        addTitle("لوحة التحكم")
+
+        dashboardStockText = TextView(this).apply {
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(35,35,35))
+            setPadding(0,8,0,4)
+        }
+        content.addView(dashboardStockText)
+
+        dashboardSoldText = TextView(this).apply {
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.rgb(35,35,35))
+            setPadding(0,4,0,10)
+        }
+        content.addView(dashboardSoldText)
+
+        addSectionTitle("مخزون كل فئة بشكل مستقل")
+        CardStore.supportedAmounts.forEach { amount ->
+            val row = cardRow("$amount ريال", "0 كرت")
+            val valueView = row.findViewWithTag<TextView>("stock_value")
+            if (valueView != null) dashboardCategoryViews[amount] = valueView
+            content.addView(row)
+        }
+
+        addSectionTitle("إدارة المخزون")
+        addButton("عرض أرقام الكروت المتبقية لكل فئة") { showStock() }
+
+        addSectionTitle("اختصارات")
+        addButton("إضافة كروت جديدة") { showAddCards() }
+        addButton("معرفة الكروت التي تم بيعها") { showSales() }
+        addButton("إنشاء نسخة احتياطية الآن") {
+            val name = BackupManager.createBackup(this)
+            Toast.makeText(this, if(name != null) "تم حفظ النسخة في التنزيلات" else "تعذر إنشاء النسخة", Toast.LENGTH_LONG).show()
+        }
+
+        refreshDashboardStock()
+    }
+
+    private fun refreshDashboardStock() {
+        dashboardStockText?.text = "إجمالي الكروت المتبقية: ${CardStore.totalStock(this)} كرت"
+        dashboardSoldText?.text = "إجمالي الكروت المباعة: ${CardStore.salesCount(this)} كرت"
+        CardStore.supportedAmounts.forEach { amount ->
+            dashboardCategoryViews[amount]?.text = "${CardStore.count(this, amount)} كرت متبقي"
+        }
     }
 
     private fun showAddCards(){
@@ -66,6 +137,85 @@ class MainActivity : Activity() {
         content.addView(input,LinearLayout.LayoutParams(-1,0,1f))
         addButton("حفظ الكروت"){val amount=CardStore.supportedAmounts[spinner.selectedItemPosition];val added=CardStore.addCards(this,amount,input.text.toString());Toast.makeText(this,if(added>0)"تم حفظ $added كرت من فئة $amount ريال" else "لم يتم العثور على أرقام كروت صحيحة",Toast.LENGTH_LONG).show();if(added>0)input.setText("")}
         addText("المخزون الحالي: "+CardStore.supportedAmounts.joinToString(" | "){"$it=${CardStore.count(this,it)}"})
+    }
+
+    private fun showStock() {
+        currentScreen = "stock"
+        content.removeAllViews()
+        addBackButton()
+        addTitle("مخزون الكروت")
+        addText("اختر الفئة لعرض أرقام الكروت المتبقية. الأرقام الموجودة هنا هي التي لم تُبع بعد.")
+
+        val spinner = Spinner(this)
+        spinner.setBackgroundColor(Color.WHITE)
+        spinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item,
+            CardStore.supportedAmounts.map { amount -> "$amount ريال — ${CardStore.count(this, amount)} كرت" })
+        content.addView(spinner)
+
+        val cardsContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        content.addView(cardsContainer)
+
+        fun renderCards() {
+            cardsContainer.removeAllViews()
+            val amount = CardStore.supportedAmounts[spinner.selectedItemPosition]
+            val cards = CardStore.cards(this, amount)
+
+            cardsContainer.addView(TextView(this).apply {
+                text = "فئة $amount ريال — ${cards.size} كرت متبقي"
+                textSize = 18f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.rgb(30,30,30))
+                setPadding(0,16,0,10)
+            })
+
+            if (cards.isEmpty()) {
+                cardsContainer.addView(TextView(this).apply {
+                    text = "لا يوجد كروت متبقية في هذه الفئة."
+                    textSize = 15f
+                    setTextColor(Color.rgb(45,45,45))
+                    setPadding(0,8,0,10)
+                })
+                return
+            }
+
+            cards.forEachIndexed { index, card ->
+                val box = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    setPadding(14,12,14,12)
+                    setBackgroundColor(Color.WHITE)
+                }
+                box.addView(TextView(this@MainActivity).apply {
+                    text = "${index + 1}."
+                    textSize = 15f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setTextColor(Color.rgb(20,90,145))
+                }, LinearLayout.LayoutParams(42.dp(), -2))
+                box.addView(TextView(this@MainActivity).apply {
+                    text = card
+                    textSize = 17f
+                    setTextColor(Color.rgb(25,25,25))
+                }, LinearLayout.LayoutParams(0,-2,1f))
+                cardsContainer.addView(box, LinearLayout.LayoutParams(-1,-2).apply {
+                    setMargins(0,0,0,6)
+                })
+            }
+        }
+
+        spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) { renderCards() }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        addButton("تحديث المخزون والأرقام") {
+            val position = spinner.selectedItemPosition
+            spinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item,
+                CardStore.supportedAmounts.map { amount -> "$amount ريال — ${CardStore.count(this, amount)} كرت" })
+            spinner.setSelection(position.coerceAtMost(CardStore.supportedAmounts.lastIndex))
+            renderCards()
+        }
+
+        renderCards()
     }
 
     private fun showSales(){
@@ -94,7 +244,7 @@ class MainActivity : Activity() {
     private fun addSectionTitle(text:String){content.addView(TextView(this).apply{this.text=text;textSize=18f;typeface=Typeface.DEFAULT_BOLD;setTextColor(Color.rgb(45,45,45));setPadding(0,16,0,8)})}
     private fun addText(text:String){content.addView(TextView(this).apply{this.text=text;textSize=15f;setTextColor(Color.rgb(45,45,45));setPadding(0,8,0,10)})}
     private fun addButton(text:String,action:()->Unit){content.addView(Button(this).apply{this.text=text;setTextColor(Color.WHITE);setBackgroundColor(Color.rgb(35,95,150));setOnClickListener{action()}})}
-    private fun cardRow(title:String,value:String):View{return LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER_VERTICAL;setPadding(18,14,18,14);setBackgroundColor(Color.WHITE);addView(TextView(this@MainActivity).apply{text=title;textSize=16f;typeface=Typeface.DEFAULT_BOLD;setTextColor(Color.rgb(30,30,30))},LinearLayout.LayoutParams(0,-2,1f));addView(TextView(this@MainActivity).apply{text=value;textSize=16f;setTextColor(Color.rgb(20,90,145))});layoutParams=LinearLayout.LayoutParams(-1,-2).apply{setMargins(0,0,0,6)}}}
+    private fun cardRow(title:String,value:String):View{return LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;gravity=Gravity.CENTER_VERTICAL;setPadding(18,14,18,14);setBackgroundColor(Color.WHITE);addView(TextView(this@MainActivity).apply{text=title;textSize=16f;typeface=Typeface.DEFAULT_BOLD;setTextColor(Color.rgb(30,30,30))},LinearLayout.LayoutParams(0,-2,1f));addView(TextView(this@MainActivity).apply{text=value;tag="stock_value";textSize=16f;typeface=Typeface.DEFAULT_BOLD;setTextColor(Color.rgb(20,90,145))});layoutParams=LinearLayout.LayoutParams(-1,-2).apply{setMargins(0,0,0,6)}}}
     private fun setupBackupSchedule(){val request=PeriodicWorkRequestBuilder<BackupWorker>(1,TimeUnit.DAYS).build();WorkManager.getInstance(this).enqueueUniquePeriodicWork("alkamel_daily_backup",ExistingPeriodicWorkPolicy.KEEP,request)}
     private fun requestPermissions(){val needed=mutableListOf(Manifest.permission.RECEIVE_SMS,Manifest.permission.READ_SMS,Manifest.permission.SEND_SMS);if(android.os.Build.VERSION.SDK_INT>=33&&ContextCompat.checkSelfPermission(this,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)needed.add(Manifest.permission.POST_NOTIFICATIONS);val missing=needed.filter{ContextCompat.checkSelfPermission(this,it)!=PackageManager.PERMISSION_GRANTED};if(missing.isNotEmpty())ActivityCompat.requestPermissions(this,missing.toTypedArray(),requestCode)}
     private fun Int.dp():Int=(this*resources.displayMetrics.density).toInt()
