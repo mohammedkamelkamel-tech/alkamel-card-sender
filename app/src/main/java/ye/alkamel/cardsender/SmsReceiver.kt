@@ -98,7 +98,8 @@ class SmsReceiver : BroadcastReceiver() {
     private fun findAlternateDestination(context: Context, body: String): String? {
         // Jaib messages can contain a short/alternate subscriber number after "من",
         // e.g. "... من 164783". Use that number only for the mapping lookup.
-        val fromPattern = Pattern.compile("""من\\s*[:：-]?\\s*(\\d{4,12})(?!\\d)""")
+        // Kotlin raw strings use single backslashes for regex escapes.
+        val fromPattern = Pattern.compile("""من\s*[:：-]?\s*(\d{4,12})(?!\d)""")
         val match = fromPattern.matcher(body)
         if (!match.find()) return null
         val alternate = match.group(1)?.trim() ?: return null
