@@ -218,8 +218,8 @@ class MainActivity : Activity() {
         addButton("تحديث المخزون والأرقام") {
             val position = spinner.selectedItemPosition
             spinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item,
-                CardStore.supportedAmounts.map { amount -> "$amount ريال — ${CardStore.count(this, amount)} كرت" })
-            spinner.setSelection(position.coerceAtMost(CardStore.supportedAmounts.lastIndex))
+                CardStore.categories(this).map { amount -> "$amount ريال — ${CardStore.count(this, amount)} كرت" })
+            spinner.setSelection(position.coerceAtMost(CardStore.categories(this).lastIndex))
             renderCards()
         }
 
@@ -268,7 +268,7 @@ class MainActivity : Activity() {
         addTitle("تنبيه نقص المخزون")
         addText("حدد الحد لكل فئة. عندما يصل المخزون إلى هذا العدد أو أقل، يظهر تنبيه جديد مع كل عملية بيع من نفس الفئة فقط. اكتب 0 لإيقاف التنبيه لهذه الفئة.")
 
-        CardStore.supportedAmounts.forEach { amount ->
+        CardStore.categories(this).forEach { amount ->
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(14, 12, 14, 12)
