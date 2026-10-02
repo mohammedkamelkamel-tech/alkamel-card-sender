@@ -370,6 +370,20 @@ class MainActivity : Activity() {
                 Toast.LENGTH_LONG
             ).show()
         }
+        addButton("استعادة نسخة احتياطية") {
+            android.app.AlertDialog.Builder(this)
+                .setTitle("استعادة نسخة احتياطية")
+                .setMessage("سيتم استبدال المخزون الحالي والمبيعات بالبيانات الموجودة في النسخة الاحتياطية. تأكد من اختيار الملف الصحيح قبل المتابعة.")
+                .setNegativeButton("إلغاء", null)
+                .setPositiveButton("اختيار ملف النسخة") { _, _ ->
+                    val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                        type = "application/zip"
+                    }
+                    startActivityForResult(intent, restoreRequestCode)
+                }
+                .show()
+        }
 
         refreshDashboardStock()
     }
