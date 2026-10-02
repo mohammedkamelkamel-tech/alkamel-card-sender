@@ -69,8 +69,9 @@ class SmsReceiver : BroadcastReceiver() {
         val categories = CardStore.categories(context)
         if (categories.isEmpty()) return
 
+        val configuredAmounts = categories.sortedDescending().joinToString("|") { Pattern.quote(it.toString()) }
         val amountPattern = Pattern.compile(
-            """(?<!\d)(\${categories.sortedDescending().joinToString("|")})(?!\d)"""
+            """(?<!\d)($configuredAmounts)(?!\d)"""
         )
         val amountMatch = amountPattern.matcher(body)
         if (!amountMatch.find()) {
