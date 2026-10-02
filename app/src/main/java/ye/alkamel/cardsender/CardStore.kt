@@ -73,6 +73,44 @@ object CardStore {
         cards.size
     }
 
+    fun moveCards(context: Context, fromAmount: Int, toAmount: Int, raw: String): Int = lock.withLock {
+        initializeFiles(context)
+        if (fromAmount == toAmount) return 0
+        if (!categories(context).contains(fromAmount) || !categories(context).contains(toAmount)) return 0
+
+        val requested = raw.lines()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() && it.all(Char::isDigit) }
+        if (requested.isEmpty()) return 0
+
+        val sourceFile = file(context, fromAmount)
+        val destinationFile = file(context, toAmount)
+        if (!sourceFile.exists()) return 0
+
+        val sourceCards = sourceFile.readLines().map { it.trim() }.filter { it.isNotEmpty() }.toMutableList()
+        val movedCards = mutableListOf<String>()
+
+        requested.forEach { card ->
+            val index = sourceCards.indexOf(card)
+            if (index >= 0) {
+                sourceCards.removeAt(index)
+                movedCards.add(card)
+            }
+        }
+
+        if (movedCards.isEmpty()) return 0
+
+        sourceFile.writeText(if (sourceCards.isEmpty()) "" else sourceCards.joinToString("\n") + "\n")
+
+        val oldDestination = if (destinationFile.exists()) destinationFile.readText().trimEnd() else ""
+        val block = movedCards.joinToString("\n")
+        destinationFile.writeText(
+            if (oldDestination.isBlank()) "$block\n" else "$oldDestination\n$block\n"
+        )
+
+        movedCards.size
+    }
+
     fun count(context: Context, amount: Int): Int = lock.withLock {
         val f = file(context, amount)
         if (!f.exists()) return 0
