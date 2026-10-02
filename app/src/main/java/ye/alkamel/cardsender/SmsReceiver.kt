@@ -71,15 +71,13 @@ class SmsReceiver : BroadcastReceiver() {
     }
 
     private fun findAlternateDestination(context: Context, body: String): String? {
-        val alternatePattern = Pattern.compile("""(?<!\\d)(\\d{4,12})(?!\\d)""")
-        val matches = alternatePattern.matcher(body)
-        while (matches.find()) {
-            val value = matches.group(1)
-            if (value == "45016" || value.length < 4) continue
-            val mapped = ContactMap.getPhone(context, value)
-            if (!mapped.isNullOrBlank()) return mapped
-        }
-        return null
+        // Jaib messages can contain a short/alternate subscriber number after "من",
+        // e.g. "... من 164783". Use that number only for the mapping lookup.
+        val fromPattern = Pattern.compile("""من\\s*[:：-]?\\s*(\\d{4,12})(?!\\d)""")
+        val match = fromPattern.matcher(body)
+        if (!match.find()) return null
+        val alternate = match.group(1)?.trim() ?: return null
+        return ContactMap.getPhone(context, alternate)
     }
 
     private fun sendSms(context: Context, phone: String, card: String): Boolean {
