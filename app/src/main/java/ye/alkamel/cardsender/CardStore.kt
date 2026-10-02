@@ -16,8 +16,31 @@ data class Sale(
 )
 
 object CardStore {
-    val supportedAmounts = listOf(99, 100, 200, 245, 250, 500)
+    private const val PREFS = "card_categories"
+    private const val KEY_CATEGORIES = "categories"
+    private val defaultAmounts = listOf(99, 100, 200, 245, 250, 500)
     private val lock = ReentrantLock()
+
+    fun categories(context: Context): List<Int> {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val stored = prefs.getStringSet(KEY_CATEGORIES, null)
+        if (stored == null) {
+            prefs.edit().putStringSet(KEY_CATEGORIES, defaultAmounts.map { it.toString() }.toSet()).apply()
+            return defaultAmounts
+        }
+        return stored.mapNotNull { it.toIntOrNull() }.filter { it > 0 }.distinct().sorted()
+    }
+
+    fun addCategory(context: Context, amount: Int): Boolean = lock.withLock {
+        if (amount <= 0) return false
+        val current = categories(context).toMutableSet()
+        if (!current.add(amount)) return false
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .putStringSet(KEY_CATEGORIES, current.map { it.toString() }.toSet()).apply()
+        val f = file(context, amount)
+        if (!f.exists()) f.writeText("")
+        true
+    }
 
     private fun root(context: Context): File =
         File(context.filesDir, "cards").apply { mkdirs() }
@@ -29,7 +52,7 @@ object CardStore {
         File(context.filesDir, "sales.csv")
 
     fun initializeFiles(context: Context) {
-        supportedAmounts.forEach { amount ->
+        categories(context).forEach { amount ->
             val f = file(context, amount)
             if (!f.exists()) f.writeText("")
         }
@@ -40,6 +63,7 @@ object CardStore {
 
     fun addCards(context: Context, amount: Int, raw: String): Int = lock.withLock {
         initializeFiles(context)
+        if (!categories(context).contains(amount)) return 0
         val cards = raw.lines().map { it.trim() }.filter { it.isNotEmpty() && it.all(Char::isDigit) }
         if (cards.isEmpty()) return 0
         val f = file(context, amount)
@@ -61,7 +85,7 @@ object CardStore {
         f.readLines().map { it.trim() }.filter { it.isNotEmpty() }
     }
 
-    fun totalStock(context: Context): Int = supportedAmounts.sumOf { count(context, it) }
+    fun totalStock(context: Context): Int = categories(context).sumOf { count(context, it) }
 
     fun takeFirstCard(context: Context, amount: Int): String? = lock.withLock {
         val f = file(context, amount)
@@ -101,7 +125,7 @@ object CardStore {
     fun backupFiles(context: Context): List<File> {
         initializeFiles(context)
         return buildList {
-            addAll(supportedAmounts.map { file(context, it) })
+            addAll(categories(context).map { file(context, it) })
             add(salesFile(context))
         }
     }
