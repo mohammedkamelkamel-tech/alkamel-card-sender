@@ -41,3 +41,14 @@ jobs:
           name: AlKamelCardSender-v1.1.0-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Package complete project
+        run: |
+          git archive --format=zip --output="مشروع الكامل اونلاين النهائي.zip" HEAD
+
+      - name: Upload complete project
+        uses: actions/upload-artifact@v4
+        with:
+          name: مشروع الكامل اونلاين النهائي
+          path: مشروع الكامل اونلاين النهائي.zip
+          if-no-files-found: error
