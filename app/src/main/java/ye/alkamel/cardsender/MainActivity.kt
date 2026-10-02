@@ -6,6 +6,8 @@ import android.os.Handler
 import android.os.Looper
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.graphics.LinearGradient
+import android.graphics.Shader
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
@@ -151,8 +153,8 @@ class MainActivity : Activity() {
     }
 
     private fun buildUi() {
-        window.statusBarColor = Color.rgb(18, 77, 126)
-        window.navigationBarColor = Color.rgb(248, 249, 252)
+        window.statusBarColor = Color.rgb(14, 67, 111)
+        window.navigationBarColor = Color.rgb(246, 248, 252)
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -160,49 +162,87 @@ class MainActivity : Activity() {
             layoutDirection = View.LAYOUT_DIRECTION_RTL
         }
 
+        // Premium header
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(22, 20, 22, 18)
-            background = roundedBackground(Color.rgb(25, 101, 163), 0, 0)
+            setPadding(20.dp(), 18.dp(), 20.dp(), 20.dp())
+            background = gradientBackground(
+                Color.rgb(18, 82, 133),
+                Color.rgb(31, 125, 188),
+                0
+            )
+        }
+
+        val top = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutDirection = View.LAYOUT_DIRECTION_RTL
         }
 
         val logo = ImageView(this).apply {
             setImageResource(ye.alkamel.cardsender.R.drawable.alkamel_logo)
             scaleType = ImageView.ScaleType.CENTER_INSIDE
+            background = roundedBackground(Color.WHITE, 0, 0)
+            setPadding(7.dp(), 7.dp(), 7.dp(), 7.dp())
         }
-        header.addView(logo, LinearLayout.LayoutParams(64.dp(), 64.dp()).apply {
-            bottomMargin = 4.dp()
+        top.addView(logo, LinearLayout.LayoutParams(58.dp(), 58.dp()).apply {
+            marginStart = 10.dp()
         })
 
-        header.addView(TextView(this).apply {
+        val titleBox = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        titleBox.addView(TextView(this).apply {
             text = "الكامل أونلاين"
-            textSize = 28f
+            textSize = 27f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-        }, LinearLayout.LayoutParams(-1, -2))
+        })
+        titleBox.addView(TextView(this).apply {
+            text = "إدارة الكروت والمبيعات والإرسال التلقائي"
+            textSize = 13f
+            setTextColor(Color.rgb(222, 239, 252))
+            setPadding(0, 3.dp(), 0, 0)
+        })
+        top.addView(titleBox, LinearLayout.LayoutParams(0, -2, 1f))
 
-        header.addView(TextView(this).apply {
-            text = "إدارة مخزون الكروت والمبيعات والإرسال التلقائي"
-            textSize = 14f
+        val menu = TextView(this).apply {
+            text = "⋮"
+            textSize = 30f
+            gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            setPadding(0, 4, 0, 0)
-        }, LinearLayout.LayoutParams(-1, -2))
+            setPadding(8.dp(), 0, 8.dp(), 0)
+        }
+        top.addView(menu, LinearLayout.LayoutParams(40.dp(), 52.dp()))
 
-        header.addView(TextView(this).apply {
+        header.addView(top)
+
+        val licenseBox = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(12.dp(), 9.dp(), 12.dp(), 9.dp())
+            background = roundedBackground(Color.argb(45, 255, 255, 255), 0, 0)
+        }
+        licenseBox.addView(TextView(this).apply {
+            text = "●"
+            textSize = 11f
+            setTextColor(Color.rgb(130, 240, 170))
+            setPadding(0, 0, 7.dp(), 0)
+        })
+        licenseBox.addView(TextView(this).apply {
             text = LicenseManager.remainingText(this@MainActivity)
             textSize = 13f
-            setTextColor(Color.rgb(225, 241, 255))
-            gravity = Gravity.CENTER
-            setPadding(0, 7, 0, 0)
-        }, LinearLayout.LayoutParams(-1, -2))
+            setTextColor(Color.WHITE)
+        })
+        header.addView(licenseBox, LinearLayout.LayoutParams(-1, -2).apply {
+            topMargin = 13.dp()
+        })
 
         val navScroll = HorizontalScrollView(this).apply {
             setBackgroundColor(Color.WHITE)
             isHorizontalScrollBarEnabled = false
-            setPadding(7.dp(), 7.dp(), 7.dp(), 7.dp())
+            setPadding(8.dp(), 8.dp(), 8.dp(), 8.dp())
         }
         val nav = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -221,18 +261,17 @@ class MainActivity : Activity() {
         val scroll = ScrollView(this)
         content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(14.dp(), 10.dp(), 14.dp(), 24.dp())
+            setPadding(14.dp(), 12.dp(), 14.dp(), 28.dp())
             layoutDirection = View.LAYOUT_DIRECTION_RTL
         }
         scroll.addView(content)
 
         val footer = TextView(this).apply {
-            text = "حقوق محمد كامل - 772072056"
-            textSize = 13f
-            typeface = Typeface.DEFAULT_BOLD
+            text = "الكامل أونلاين  •  حقوق محمد كامل - 772072056"
+            textSize = 12f
             gravity = Gravity.CENTER
-            setTextColor(Color.rgb(90, 90, 90))
-            setPadding(8, 10, 8, 10)
+            setTextColor(Color.rgb(105, 112, 120))
+            setPadding(8.dp(), 11.dp(), 8.dp(), 11.dp())
             setBackgroundColor(Color.WHITE)
         }
 
@@ -245,15 +284,15 @@ class MainActivity : Activity() {
 
     private fun navButton(text: String, action: () -> Unit) = TextView(this).apply {
         this.text = text
-        textSize = 14f
+        textSize = 13.5f
         typeface = Typeface.DEFAULT_BOLD
         gravity = Gravity.CENTER
         setSingleLine(true)
-        setTextColor(Color.rgb(30, 91, 143))
-        background = roundedBackground(Color.WHITE, Color.rgb(207, 220, 232), 1.dp())
-        setPadding(18.dp(), 0, 18.dp(), 0)
+        setTextColor(Color.rgb(31, 91, 139))
+        background = roundedBackground(Color.rgb(247, 250, 253), Color.rgb(213, 225, 235), 1.dp())
+        setPadding(17.dp(), 0, 17.dp(), 0)
         setOnClickListener { action() }
-        layoutParams = LinearLayout.LayoutParams(-2, 48.dp()).apply {
+        layoutParams = LinearLayout.LayoutParams(-2, 46.dp()).apply {
             setMargins(4.dp(), 0, 4.dp(), 0)
         }
     }
@@ -264,24 +303,27 @@ class MainActivity : Activity() {
         dashboardCategoryViews.clear()
 
         addTitle("لوحة التحكم")
-        addText("إدارة مخزون الكروت والمبيعات والإرسال التلقائي")
+        addText("نظرة سريعة على مخزون الكروت والمبيعات وحالة الشبكة.")
 
         val stats = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             layoutDirection = View.LAYOUT_DIRECTION_RTL
-            weightSum = 2f
         }
 
-        val stockCard = statCard("إجمالي الكروت المتبقية", "0 كرت", Color.rgb(25, 101, 163))
+        val stockCard = statCard("المخزون الحالي", "0", Color.rgb(22, 105, 170), "كرت")
         dashboardStockText = stockCard.second
-        val soldCard = statCard("إجمالي الكروت المباعة", "0 كرت", Color.rgb(37, 128, 91))
+        val soldCard = statCard("إجمالي المبيعات", "0", Color.rgb(38, 135, 94), "كرت")
         dashboardSoldText = soldCard.second
 
-        stats.addView(stockCard.first, LinearLayout.LayoutParams(0, -2, 1f).apply { setMargins(0, 0, 5.dp(), 0) })
-        stats.addView(soldCard.first, LinearLayout.LayoutParams(0, -2, 1f).apply { setMargins(5.dp(), 0, 0, 0) })
+        stats.addView(stockCard.first, LinearLayout.LayoutParams(0, -2, 1f).apply {
+            setMargins(0, 0, 5.dp(), 0)
+        })
+        stats.addView(soldCard.first, LinearLayout.LayoutParams(0, -2, 1f).apply {
+            setMargins(5.dp(), 0, 0, 0)
+        })
         content.addView(stats)
 
-        addSectionTitle("مخزون كل فئة")
+        addSectionTitle("المخزون حسب الفئة")
         CardStore.categories(this).forEach { amount ->
             val row = cardRow("$amount ريال", "0 كرت")
             val valueView = row.findViewWithTag<TextView>("stock_value")
@@ -289,18 +331,16 @@ class MainActivity : Activity() {
             content.addView(row)
         }
 
-        addSectionTitle("إدارة الفئات")
+        addSectionTitle("إدارة سريعة")
         addButton("إضافة فئة كروت جديدة", true) { showCategories() }
         addButton("ربط رقم بديل برقم جوال", true) { showAlternateNumbers() }
-
-        addSectionTitle("إدارة المخزون")
         addButton("عرض أرقام الكروت المتبقية لكل فئة", true) { showStock() }
 
         addSectionTitle("اختصارات")
-        addButton("إضافة كروت جديدة", false) { showAddCards() }
-        addButton("معرفة الكروت التي تم بيعها", false) { showSales() }
-        addButton("إعدادات تنبيه نقص المخزون", false) { showStockAlertSettings() }
-        addButton("إنشاء نسخة احتياطية الآن", false) {
+        addButton("إضافة كروت جديدة") { showAddCards() }
+        addButton("معرفة الكروت التي تم بيعها") { showSales() }
+        addButton("إعدادات تنبيه نقص المخزون") { showStockAlertSettings() }
+        addButton("إنشاء نسخة احتياطية الآن") {
             val name = BackupManager.createBackup(this)
             Toast.makeText(
                 this,
@@ -669,7 +709,7 @@ class MainActivity : Activity() {
     }
 
     private fun addBackButton() {
-        addButton("رجوع إلى الرئيسية", false) { showDashboard() }
+        addButton("رجوع إلى الرئيسية") { showDashboard() }
     }
 
     private fun addTitle(text: String) {
@@ -677,18 +717,18 @@ class MainActivity : Activity() {
             this.text = text
             textSize = 25f
             typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.rgb(24, 38, 52))
+            setTextColor(Color.rgb(22, 38, 53))
             gravity = Gravity.RIGHT
-            setPadding(2.dp(), 14.dp(), 2.dp(), 4.dp())
+            setPadding(2.dp(), 10.dp(), 2.dp(), 3.dp())
         })
     }
 
     private fun addSectionTitle(text: String) {
         content.addView(TextView(this).apply {
             this.text = text
-            textSize = 19f
+            textSize = 18f
             typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.rgb(25, 75, 112))
+            setTextColor(Color.rgb(24, 78, 117))
             gravity = Gravity.RIGHT
             setPadding(2.dp(), 18.dp(), 2.dp(), 8.dp())
         })
@@ -697,24 +737,24 @@ class MainActivity : Activity() {
     private fun addText(text: String) {
         content.addView(TextView(this).apply {
             this.text = text
-            textSize = 15f
-            setTextColor(Color.rgb(70, 80, 90))
+            textSize = 14.5f
+            setTextColor(Color.rgb(91, 101, 111))
             gravity = Gravity.RIGHT
-            setPadding(2.dp(), 5.dp(), 2.dp(), 9.dp())
+            setPadding(2.dp(), 3.dp(), 2.dp(), 11.dp())
         })
     }
 
     private fun addButton(text: String, primary: Boolean = false, action: () -> Unit) {
         val button = TextView(this).apply {
             this.text = text
-            textSize = 15f
+            textSize = 14.5f
             typeface = Typeface.DEFAULT_BOLD
             gravity = Gravity.CENTER
-            setTextColor(if (primary) Color.WHITE else Color.rgb(25, 92, 145))
+            setTextColor(if (primary) Color.WHITE else Color.rgb(27, 91, 141))
             background = if (primary) {
-                roundedBackground(Color.rgb(37, 105, 164), 0, 0)
+                gradientBackground(Color.rgb(29, 99, 157), Color.rgb(42, 127, 190), 12.dp())
             } else {
-                roundedBackground(Color.WHITE, Color.rgb(205, 220, 232), 1.dp())
+                roundedBackground(Color.WHITE, Color.rgb(213, 224, 234), 1.dp())
             }
             setPadding(16.dp(), 0, 16.dp(), 0)
             setOnClickListener { action() }
@@ -724,28 +764,43 @@ class MainActivity : Activity() {
         })
     }
 
-    private fun statCard(title: String, initial: String, accent: Int): Pair<View, TextView> {
+    private fun statCard(
+        title: String,
+        initial: String,
+        accent: Int,
+        unit: String
+    ): Pair<View, TextView> {
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(12.dp(), 14.dp(), 12.dp(), 14.dp())
-            background = roundedBackground(Color.WHITE, Color.rgb(225, 231, 237), 1.dp())
+            setPadding(12.dp(), 15.dp(), 12.dp(), 15.dp())
+            background = roundedBackground(Color.WHITE, Color.rgb(222, 229, 236), 1.dp())
         }
+
         box.addView(TextView(this).apply {
             text = title
             textSize = 13f
-            setTextColor(Color.rgb(85, 95, 105))
+            setTextColor(Color.rgb(93, 103, 113))
             gravity = Gravity.CENTER
         })
+
         val value = TextView(this).apply {
             text = initial
-            textSize = 21f
+            textSize = 26f
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(accent)
             gravity = Gravity.CENTER
-            setPadding(0, 6.dp(), 0, 0)
+            setPadding(0, 4.dp(), 0, 0)
         }
         box.addView(value)
+
+        box.addView(TextView(this).apply {
+            text = unit
+            textSize = 12f
+            setTextColor(Color.rgb(125, 133, 141))
+            gravity = Gravity.CENTER
+        })
+
         return Pair(box, value)
     }
 
@@ -753,23 +808,26 @@ class MainActivity : Activity() {
         return LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(16.dp(), 12.dp(), 16.dp(), 12.dp())
-            background = roundedBackground(Color.WHITE, Color.rgb(225, 231, 237), 1.dp())
+            setPadding(16.dp(), 13.dp(), 16.dp(), 13.dp())
+            background = roundedBackground(Color.WHITE, Color.rgb(222, 229, 236), 1.dp())
+
             addView(TextView(this@MainActivity).apply {
                 text = title
                 textSize = 16f
                 typeface = Typeface.DEFAULT_BOLD
-                setTextColor(Color.rgb(35, 45, 55))
+                setTextColor(Color.rgb(38, 48, 58))
                 gravity = Gravity.RIGHT
             }, LinearLayout.LayoutParams(0, -2, 1f))
+
             addView(TextView(this@MainActivity).apply {
                 text = value
                 tag = "stock_value"
-                textSize = 16f
+                textSize = 15f
                 typeface = Typeface.DEFAULT_BOLD
-                setTextColor(Color.rgb(25, 100, 158))
+                setTextColor(Color.rgb(24, 101, 158))
                 gravity = Gravity.LEFT
             })
+
             layoutParams = LinearLayout.LayoutParams(-1, -2).apply {
                 setMargins(0, 0, 0, 7.dp())
             }
@@ -781,6 +839,14 @@ class MainActivity : Activity() {
             setColor(fill)
             cornerRadius = 12.dp().toFloat()
             if (strokeWidth > 0) setStroke(strokeWidth, stroke)
+        }
+
+    private fun gradientBackground(start: Int, end: Int, radius: Int): GradientDrawable =
+        GradientDrawable(
+            GradientDrawable.Orientation.TL_BR,
+            intArrayOf(start, end)
+        ).apply {
+            cornerRadius = radius.toFloat()
         }
 
     private fun setupBackupSchedule(){val request=PeriodicWorkRequestBuilder<BackupWorker>(1,TimeUnit.DAYS).build();WorkManager.getInstance(this).enqueueUniquePeriodicWork("alkamel_daily_backup",ExistingPeriodicWorkPolicy.KEEP,request)}
