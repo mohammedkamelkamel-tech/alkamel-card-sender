@@ -40,6 +40,10 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        if (!LicenseManager.isActivated(this)) {
+            showActivationScreen()
+            return
+        }
         refreshHandler.removeCallbacks(stockRefreshRunnable)
         refreshHandler.post(stockRefreshRunnable)
     }
