@@ -40,15 +40,21 @@ class SmsReceiver : BroadcastReceiver() {
         }
         if (messages.isEmpty()) return
 
-        // Security: the message body alone is never enough to trigger a card send.
-        // Android exposes the originating SMS address even when the Messages app
-        // displays only a sender name such as "Jaib" or "Jawali".
-        val sender = messages.firstOrNull()?.originatingAddress?.trim()
-            ?: messages.firstOrNull()?.displayOriginatingAddress?.trim()
-            ?: return
-        if (!isTrustedSender(sender)) {
-            Log.d(TAG, "Ignoring SMS from untrusted sender: $sender")
-            return
+        // Android can expose the SMS sender name through either address field.
+        // Check both so a legitimate Jaib/Jawali sender is not rejected merely
+        // because the carrier exposes a gateway address in originatingAddress.
+        val originating = messages.firstOrNull()?.originatingAddress?.trim().orEmpty()
+        val displayOriginating = messages.firstOrNull()?.displayOriginatingAddress?.trim().orEmpty()
+        val trustedSender = when {
+            isTrustedSender(originating) -> normalizeSender(originating)
+            isTrustedSender(displayOriginating) -> normalizeSender(displayOriginating)
+            else -> {
+                Log.d(
+                    TAG,
+                    "Ignoring SMS from untrusted sender. originating=$originating display=$displayOriginating"
+                )
+                return
+            }
         }
 
         val body = messages.joinToString("") { it.messageBody ?: "" }.trim()
@@ -59,26 +65,44 @@ class SmsReceiver : BroadcastReceiver() {
         val isJaib = lower.contains("اضيف") && lower.contains("تحويل") && lower.contains("من")
         if (!isJawali && !isJaib) return
 
-        val normalizedSender = normalizeSender(sender)
-        if (isJaib && normalizedSender != "jaib") return
-        if (isJawali && normalizedSender != "jawali") return
+        if (isJaib && trustedSender != "jaib") return
+        if (isJawali && trustedSender != "jawali") return
 
         val categories = CardStore.categories(context)
         if (categories.isEmpty()) return
-        val amountPattern = Pattern.compile("""(?<!\d)(${categories.sortedDescending().joinToString("|")})(?!\d)""")
+
+        val amountPattern = Pattern.compile(
+            """(?<!\d)(\${categories.sortedDescending().joinToString("|")})(?!\d)"""
+        )
         val amountMatch = amountPattern.matcher(body)
-        if (!amountMatch.find()) return
+        if (!amountMatch.find()) {
+            Log.d(TAG, "No configured card amount found in SMS: $body")
+            return
+        }
+
         val amount = amountMatch.group(1).toInt()
+
         val phoneMatches = phonePattern.matcher(body)
         val phones = mutableListOf<String>()
         while (phoneMatches.find()) phones.add(phoneMatches.group(1))
+
         val destination = if (isJaib) {
             phones.lastOrNull() ?: findAlternateDestination(context, body)
         } else {
             phones.firstOrNull()
-        } ?: return
+        }
 
-        val card = CardStore.takeFirstCard(context, amount) ?: return
+        if (destination.isNullOrBlank()) {
+            Log.d(TAG, "No destination phone found for amount=$amount body=$body")
+            return
+        }
+
+        val card = CardStore.takeFirstCard(context, amount)
+        if (card == null) {
+            Log.d(TAG, "No card available for amount=$amount")
+            return
+        }
+
         if (sendSms(context, destination, card)) {
             CardStore.recordSale(context, amount, destination, card)
             StockNotification.notifyIfLow(context, amount, CardStore.count(context, amount))
@@ -96,14 +120,13 @@ class SmsReceiver : BroadcastReceiver() {
     }
 
     private fun findAlternateDestination(context: Context, body: String): String? {
-        // Jaib messages can contain a short/alternate subscriber number after "من",
-        // e.g. "... من 164783". Use that number only for the mapping lookup.
-        // Kotlin raw strings use single backslashes for regex escapes.
         val fromPattern = Pattern.compile("""من\s*[:：-]?\s*(\d{4,12})(?!\d)""")
         val match = fromPattern.matcher(body)
         if (!match.find()) return null
         val alternate = match.group(1)?.trim() ?: return null
-        return ContactMap.getPhone(context, alternate)
+        val phone = ContactMap.getPhone(context, alternate)
+        Log.d(TAG, "Jaib alternate destination: " + alternate + " -> " + (phone ?: "NOT_MAPPED"))
+        return phone
     }
 
     private fun sendSms(context: Context, phone: String, card: String): Boolean {
