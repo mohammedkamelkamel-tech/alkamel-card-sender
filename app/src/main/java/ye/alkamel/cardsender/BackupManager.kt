@@ -38,8 +38,66 @@ object BackupManager {
                 File(dir, name).outputStream().use { output -> ZipOutputStream(output).use { zip -> writeZip(context, zip) } }
             }
             context.getSharedPreferences("settings", Context.MODE_PRIVATE).edit().putString("last_backup", stamp).apply()
+            cleanupOldBackups(context, 7)
             name
         } catch (_: Exception) { null }
+    }
+
+    /**
+     * يحتفظ بآخر 7 نسخ احتياطية فقط ويحذف النسخ الأقدم تلقائياً.
+     * يتم تطبيق ذلك على النسخ التي ينشئها التطبيق نفسه.
+     */
+    private fun cleanupOldBackups(context: Context, keepCount: Int) {
+        try {
+            if (Build.VERSION.SDK_INT >= 29) {
+                val resolver = context.contentResolver
+                val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
+                val projection = arrayOf(
+                    MediaStore.Downloads._ID,
+                    MediaStore.Downloads.DISPLAY_NAME,
+                    MediaStore.Downloads.RELATIVE_PATH,
+                    MediaStore.Downloads.DATE_ADDED
+                )
+                val relativePath = Environment.DIRECTORY_DOWNLOADS +
+                    "/الكامل أونلاين/نسخ احتياطية/"
+                val backups = mutableListOf<Pair<Long, Long>>()
+
+                resolver.query(
+                    collection,
+                    projection,
+                    "${MediaStore.Downloads.RELATIVE_PATH} = ? AND ${MediaStore.Downloads.DISPLAY_NAME} LIKE ?",
+                    arrayOf(relativePath, "alkamel_backup%.zip"),
+                    "${MediaStore.Downloads.DATE_ADDED} DESC"
+                )?.use { cursor ->
+                    val idIndex = cursor.getColumnIndexOrThrow(MediaStore.Downloads._ID)
+                    val dateIndex = cursor.getColumnIndexOrThrow(MediaStore.Downloads.DATE_ADDED)
+                    while (cursor.moveToNext()) {
+                        backups.add(cursor.getLong(idIndex) to cursor.getLong(dateIndex))
+                    }
+                }
+
+                backups.drop(keepCount).forEach { (id, _) ->
+                    resolver.delete(
+                        Uri.withAppendedPath(collection, id.toString()),
+                        null,
+                        null
+                    )
+                }
+            } else {
+                val dir = File(
+                    context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS),
+                    "نسخ احتياطية"
+                )
+                val backups = dir.listFiles()
+                    ?.filter { it.isFile && it.name.startsWith("alkamel_backup") && it.name.endsWith(".zip") }
+                    ?.sortedByDescending { it.lastModified() }
+                    ?: emptyList()
+
+                backups.drop(keepCount).forEach { it.delete() }
+            }
+        } catch (_: Exception) {
+            // عدم فشل النسخة الاحتياطية إذا تعذر تنظيف النسخ القديمة.
+        }
     }
 
     fun restoreBackup(context: Context, uri: Uri): Result {
