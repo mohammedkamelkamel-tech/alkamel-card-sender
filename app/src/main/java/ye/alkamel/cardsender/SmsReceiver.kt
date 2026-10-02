@@ -40,21 +40,15 @@ class SmsReceiver : BroadcastReceiver() {
         }
         if (messages.isEmpty()) return
 
-        // Android can expose the SMS sender name through either address field.
-        // Check both so a legitimate Jaib/Jawali sender is not rejected merely
-        // because the carrier exposes a gateway address in originatingAddress.
+        // Some Yemen SMS gateways expose a numeric sender instead of the
+        // visible name (Jaib/Jawali). Therefore sender-name validation must
+        // not block an otherwise valid transfer message.
         val originating = messages.firstOrNull()?.originatingAddress?.trim().orEmpty()
         val displayOriginating = messages.firstOrNull()?.displayOriginatingAddress?.trim().orEmpty()
-        val trustedSender = when {
+        val senderHint = when {
             isTrustedSender(originating) -> normalizeSender(originating)
             isTrustedSender(displayOriginating) -> normalizeSender(displayOriginating)
-            else -> {
-                Log.d(
-                    TAG,
-                    "Ignoring SMS from untrusted sender. originating=$originating display=$displayOriginating"
-                )
-                return
-            }
+            else -> ""
         }
 
         val body = messages.joinToString("") { it.messageBody ?: "" }.trim()
@@ -65,8 +59,12 @@ class SmsReceiver : BroadcastReceiver() {
         val isJaib = lower.contains("اضيف") && lower.contains("تحويل") && lower.contains("من")
         if (!isJawali && !isJaib) return
 
-        if (isJaib && trustedSender != "jaib") return
-        if (isJawali && trustedSender != "jawali") return
+        // If the gateway gives us a sender name, use it as an extra check.
+        // If it gives only a numeric/hidden sender, trust the exact SMS format.
+        if (senderHint.isNotBlank()) {
+            if (isJaib && senderHint != "jaib") return
+            if (isJawali && senderHint != "jawali") return
+        }
 
         val categories = CardStore.categories(context)
         if (categories.isEmpty()) return
@@ -120,10 +118,19 @@ class SmsReceiver : BroadcastReceiver() {
     }
 
     private fun findAlternateDestination(context: Context, body: String): String? {
-        val fromPattern = Pattern.compile("""من\s*[:：-]?\s*(\d{4,12})(?!\d)""")
-        val match = fromPattern.matcher(body)
-        if (!match.find()) return null
-        val alternate = match.group(1)?.trim() ?: return null
+        // Jaib can put the sender's name between "من" and the alternate number:
+        // "من كمال العجاج 164783". Extract the last numeric token after "من"
+        // so the customer's name does not prevent the mapping from working.
+        val fromIndex = body.lastIndexOf("من")
+        if (fromIndex < 0) return null
+
+        val tail = body.substring(fromIndex + 2)
+        val numberPattern = Pattern.compile("""(?<!\d)(\d{4,12})(?!\d)""")
+        val matcher = numberPattern.matcher(tail)
+        var alternate: String? = null
+        while (matcher.find()) alternate = matcher.group(1)
+
+        if (alternate.isNullOrBlank()) return null
         val phone = ContactMap.getPhone(context, alternate)
         Log.d(TAG, "Jaib alternate destination: " + alternate + " -> " + (phone ?: "NOT_MAPPED"))
         return phone
