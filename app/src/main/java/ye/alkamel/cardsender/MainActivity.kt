@@ -141,7 +141,18 @@ class MainActivity : Activity() {
         header.addView(TextView(this).apply { text="الكامل أونلاين"; textSize=27f; typeface=Typeface.DEFAULT_BOLD; setTextColor(Color.WHITE) })
         header.addView(TextView(this).apply { text="إدارة مخزون الكروت والمبيعات والإرسال التلقائي"; textSize=14f; setTextColor(Color.WHITE) })
         header.addView(TextView(this).apply { text=LicenseManager.remainingText(this@MainActivity); textSize=12f; setTextColor(Color.WHITE); setPadding(0,6,0,0) })
-        val nav=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL;setPadding(8,8,8,8);setBackgroundColor(Color.WHITE)}
+        // شريط القوائم مرتب من اليمين إلى اليسار، مع تمرير أفقي حتى لا
+        // تتكسر أسماء الأزرار إلى سطرين بسبب ضيق الشاشة.
+        val navScroll = HorizontalScrollView(this).apply {
+            setBackgroundColor(Color.WHITE)
+            isHorizontalScrollBarEnabled = false
+        }
+        val nav = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutDirection = View.LAYOUT_DIRECTION_RTL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(8,8,8,8)
+        }
         nav.addView(navButton("الرئيسية"){showDashboard()})
         nav.addView(navButton("إضافة"){showAddCards()})
         nav.addView(navButton("الفئات"){showCategories()})
@@ -149,13 +160,28 @@ class MainActivity : Activity() {
         nav.addView(navButton("المخزون"){showStock()})
         nav.addView(navButton("المبيعات"){showSales()})
         nav.addView(navButton("النسخ"){showBackup()})
+        navScroll.addView(nav, LinearLayout.LayoutParams(-2, -1))
+        
         val scroll=ScrollView(this)
         content=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(18,8,18,30)}
         scroll.addView(content)
-        root.addView(header);root.addView(nav);root.addView(scroll,LinearLayout.LayoutParams(-1,0,1f));setContentView(root)
+        root.addView(header);root.addView(navScroll, LinearLayout.LayoutParams(-1,62.dp()));root.addView(scroll,LinearLayout.LayoutParams(-1,0,1f));setContentView(root)
     }
 
-    private fun navButton(text:String,action:()->Unit)=Button(this).apply{this.text=text;textSize=12f;setTextColor(Color.rgb(35,35,35));setOnClickListener{action()};layoutParams=LinearLayout.LayoutParams(0,54.dp(),1f).apply{setMargins(3,0,3,0)}}
+    private fun navButton(text:String,action:()->Unit)=Button(this).apply{
+        this.text=text
+        textSize=13f
+        minWidth=88.dp()
+        minimumWidth=88.dp()
+        minHeight=48.dp()
+        minimumHeight=48.dp()
+        setSingleLine(true)
+        maxLines=1
+        setPadding(14,0,14,0)
+        setTextColor(Color.rgb(35,35,35))
+        setOnClickListener{action()}
+        layoutParams=LinearLayout.LayoutParams(-2,50.dp()).apply{setMargins(3,0,3,0)}
+    }
 
     private fun showDashboard(){
         currentScreen = "dashboard"
