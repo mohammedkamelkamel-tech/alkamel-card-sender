@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.content.pm.PackageManager
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Shader
@@ -40,6 +41,26 @@ class MainActivity : Activity() {
 
     override fun onBackPressed() {
         if (currentScreen != "dashboard") showDashboard() else super.onBackPressed()
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == restoreRequestCode && resultCode == RESULT_OK) {
+            val uri = data?.data ?: return
+            when (val result = BackupManager.restoreBackup(this, uri)) {
+                is BackupManager.Result.Success -> {
+                    Toast.makeText(
+                        this,
+                        "تمت استعادة النسخة بنجاح. تم استرجاع " + result.categories + " فئة من الكروت.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    CardStore.initializeFiles(this)
+                    showDashboard()
+                }
+                is BackupManager.Result.Error ->
+                    Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     override fun onResume() {
@@ -701,12 +722,43 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun showBackup(){
+    private fun showBackup() {
         currentScreen = "backup"
-        content.removeAllViews();addBackButton();addTitle("النسخ الاحتياطية")
-        addText("النسخة اليومية تشمل الكروت المتبقية، الكروت المباعة، أرقام المستلمين، وتاريخ المبيعات وإعدادات التطبيق.")
-        val last=getSharedPreferences("settings",MODE_PRIVATE).getString("last_backup","لم يتم إنشاء نسخة بعد");addText("آخر نسخة: $last")
-        addButton("إنشاء نسخة احتياطية الآن"){val name=BackupManager.createBackup(this);Toast.makeText(this,if(name!=null)"تم حفظ النسخة داخل التنزيلات" else "فشل إنشاء النسخة",Toast.LENGTH_LONG).show();showBackup()}
+        content.removeAllViews()
+        addBackButton()
+        addTitle("النسخ الاحتياطية")
+        addText("يمكنك إنشاء نسخة احتياطية واستعادتها لاحقًا. النسخة تشمل مخزون الكروت، الكروت المباعة، وأرقام المستلمين وإعدادات التنبيه.")
+
+        val last = getSharedPreferences("settings", MODE_PRIVATE)
+            .getString("last_backup", "لم يتم إنشاء نسخة بعد")
+        addText("آخر نسخة احتياطية: " + last)
+
+        addButton("إنشاء نسخة احتياطية الآن", true) {
+            val name = BackupManager.createBackup(this)
+            Toast.makeText(
+                this,
+                if (name != null) "تم حفظ النسخة داخل مجلد التنزيلات" else "فشل إنشاء النسخة الاحتياطية",
+                Toast.LENGTH_LONG
+            ).show()
+            showBackup()
+        }
+
+        addButton("استعادة نسخة احتياطية") {
+            android.app.AlertDialog.Builder(this)
+                .setTitle("استعادة نسخة احتياطية")
+                .setMessage("سيتم استبدال المخزون الحالي والمبيعات بالبيانات الموجودة في النسخة الاحتياطية. تأكد من اختيار الملف الصحيح قبل المتابعة.")
+                .setNegativeButton("إلغاء", null)
+                .setPositiveButton("اختيار ملف النسخة") { _, _ ->
+                    val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                        type = "application/zip"
+                    }
+                    startActivityForResult(intent, restoreRequestCode)
+                }
+                .show()
+        }
+
+        addText("نصيحة: قبل الاستعادة، يفضل إنشاء نسخة احتياطية من البيانات الحالية.")
     }
 
     private fun addBackButton() {
