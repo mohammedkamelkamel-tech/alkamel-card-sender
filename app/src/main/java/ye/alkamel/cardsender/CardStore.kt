@@ -55,6 +55,12 @@ object CardStore {
         f.readLines().count { it.trim().isNotEmpty() }
     }
 
+    fun cards(context: Context, amount: Int): List<String> = lock.withLock {
+        val f = file(context, amount)
+        if (!f.exists()) return emptyList()
+        f.readLines().map { it.trim() }.filter { it.isNotEmpty() }
+    }
+
     fun totalStock(context: Context): Int = supportedAmounts.sumOf { count(context, it) }
 
     fun takeFirstCard(context: Context, amount: Int): String? = lock.withLock {
