@@ -32,7 +32,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: AlKamelCardSender-v1.0.9-release
-          path: app/build/outputs/apk/release/app-release.apk
+          path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
 
       - name: Upload debug APK
