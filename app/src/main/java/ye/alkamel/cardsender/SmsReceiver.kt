@@ -17,7 +17,6 @@ class SmsReceiver : BroadcastReceiver() {
     companion object {
         private const val TAG = "AlKamelCardSender"
         private val executor = Executors.newSingleThreadExecutor()
-        private val amountPattern = Pattern.compile("""(?<!\d)(99|100|200|245|250|500)(?!\d)""")
         private val phonePattern = Pattern.compile("""(?<!\d)(7\d{8})(?!\d)""")
     }
 
@@ -47,6 +46,9 @@ class SmsReceiver : BroadcastReceiver() {
         val isJaib = lower.contains("اضيف") && lower.contains("تحويل") && lower.contains("من")
         if (!isJawali && !isJaib) return
 
+        val categories = CardStore.categories(context)
+        if (categories.isEmpty()) return
+        val amountPattern = Pattern.compile("""(?<!\d)(${categories.sortedDescending().joinToString("|")})(?!\d)""")
         val amountMatch = amountPattern.matcher(body)
         if (!amountMatch.find()) return
         val amount = amountMatch.group(1).toInt()
