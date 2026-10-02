@@ -55,8 +55,11 @@ class SmsReceiver : BroadcastReceiver() {
         val phoneMatches = phonePattern.matcher(body)
         val phones = mutableListOf<String>()
         while (phoneMatches.find()) phones.add(phoneMatches.group(1))
-        if (phones.isEmpty()) return
-        val destination = if (isJaib) phones.last() else phones.first()
+        val destination = if (isJaib) {
+            phones.lastOrNull() ?: findAlternateDestination(context, body)
+        } else {
+            phones.firstOrNull()
+        } ?: return
 
         val card = CardStore.takeFirstCard(context, amount) ?: return
         if (sendSms(context, destination, card)) {
@@ -65,6 +68,18 @@ class SmsReceiver : BroadcastReceiver() {
         } else {
             CardStore.returnCard(context, amount, card)
         }
+    }
+
+    private fun findAlternateDestination(context: Context, body: String): String? {
+        val alternatePattern = Pattern.compile("""(?<!\\d)(\\d{4,12})(?!\\d)""")
+        val matches = alternatePattern.matcher(body)
+        while (matches.find()) {
+            val value = matches.group(1)
+            if (value == "45016" || value.length < 4) continue
+            val mapped = ContactMap.getPhone(context, value)
+            if (!mapped.isNullOrBlank()) return mapped
+        }
+        return null
     }
 
     private fun sendSms(context: Context, phone: String, card: String): Boolean {
