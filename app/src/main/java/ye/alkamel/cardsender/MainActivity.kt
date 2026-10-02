@@ -22,6 +22,7 @@ import java.util.concurrent.TimeUnit
 
 class MainActivity : Activity() {
     private val requestCode = 700
+    private val restoreRequestCode = 701
     private lateinit var content: LinearLayout
     private var currentScreen = "dashboard"
 
