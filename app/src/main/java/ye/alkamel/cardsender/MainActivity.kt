@@ -262,7 +262,97 @@ class MainActivity : Activity() {
         val input=EditText(this).apply{hint="مثال:\n18466933\n10356433\n...";setTextColor(Color.rgb(25,25,25));setHintTextColor(Color.rgb(110,110,110));textSize=17f;minLines=10;gravity=Gravity.TOP or Gravity.RIGHT;inputType=android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE}
         content.addView(input,LinearLayout.LayoutParams(-1,0,1f))
         addButton("حفظ الكروت"){val amount=categories[spinner.selectedItemPosition];val added=CardStore.addCards(this,amount,input.text.toString());Toast.makeText(this,if(added>0)"تم حفظ $added كرت من فئة $amount ريال" else "لم يتم العثور على أرقام كروت صحيحة",Toast.LENGTH_LONG).show();if(added>0)input.setText("")}
+        addButton("تصحيح فئة الكروت / نقل الكروت") { showMoveCards() }
         addText("المخزون الحالي: "+categories.joinToString(" | "){"$it=${CardStore.count(this,it)}"})
+    }
+
+    private fun showMoveCards() {
+        currentScreen = "move_cards"
+        content.removeAllViews()
+        addBackButton()
+        addTitle("تصحيح فئة الكروت")
+        addText("إذا أضفت كروت لفئة بالخطأ، يمكنك نقلها إلى الفئة الصحيحة بدون حذفها. مثال: كروت 250 أضيفت بالخطأ إلى فئة 100، يمكنك نقلها إلى فئة 250.")
+
+        val categories = CardStore.categories(this)
+        if (categories.size < 2) {
+            addText("تحتاج إلى وجود فئتين على الأقل لاستخدام التصحيح.")
+            return
+        }
+
+        val fromSpinner = Spinner(this).apply {
+            setBackgroundColor(Color.WHITE)
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item,
+                categories.map { it.toString() + " ريال — " + CardStore.count(this@MainActivity, it) + " كرت" })
+        }
+        val toSpinner = Spinner(this).apply {
+            setBackgroundColor(Color.WHITE)
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item,
+                categories.map { it.toString() + " ريال — " + CardStore.count(this@MainActivity, it) + " كرت" })
+        }
+
+        addText("الفئة الخاطئة (من):")
+        content.addView(fromSpinner)
+        addText("الفئة الصحيحة (إلى):")
+        content.addView(toSpinner)
+
+        val input = EditText(this).apply {
+            hint = "للنقل المحدد: الصق أرقام الكروت هنا، كل كرت في سطر"
+            setTextColor(Color.rgb(25,25,25))
+            setHintTextColor(Color.rgb(110,110,110))
+            textSize = 17f
+            minLines = 8
+            gravity = Gravity.TOP or Gravity.RIGHT
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+        }
+        content.addView(input)
+
+        addButton("نقل الكروت المحددة") {
+            val from = categories[fromSpinner.selectedItemPosition]
+            val to = categories[toSpinner.selectedItemPosition]
+            if (from == to) {
+                Toast.makeText(this, "اختر فئتين مختلفتين", Toast.LENGTH_LONG).show()
+                return@addButton
+            }
+            val moved = CardStore.moveCards(this, from, to, input.text.toString())
+            Toast.makeText(
+                this,
+                if (moved > 0) "تم نقل " + moved + " كرت من " + from + " إلى " + to + " ريال" else "لم يتم نقل أي كرت. تأكد أن الأرقام موجودة في الفئة " + from,
+                Toast.LENGTH_LONG
+            ).show()
+            if (moved > 0) {
+                input.setText("")
+                showMoveCards()
+            }
+        }
+
+        addButton("نقل جميع كروت الفئة") {
+            val from = categories[fromSpinner.selectedItemPosition]
+            val to = categories[toSpinner.selectedItemPosition]
+            if (from == to) {
+                Toast.makeText(this, "اختر فئتين مختلفتين", Toast.LENGTH_LONG).show()
+                return@addButton
+            }
+
+            val available = CardStore.count(this, from)
+            if (available <= 0) {
+                Toast.makeText(this, "لا توجد كروت متبقية في فئة " + from + " ريال", Toast.LENGTH_LONG).show()
+                return@addButton
+            }
+
+            android.app.AlertDialog.Builder(this)
+                .setTitle("تأكيد نقل الكروت")
+                .setMessage("سيتم نقل جميع الكروت المتبقية من فئة " + from + " ريال إلى فئة " + to + " ريال.\n\nعدد الكروت: " + available + "\n\nاستخدم هذا الخيار فقط إذا كنت متأكدًا أن الكروت أضيفت للفئة الخطأ.")
+                .setNegativeButton("إلغاء", null)
+                .setPositiveButton("نقل الكل") { _, _ ->
+                    val cards = CardStore.cards(this, from)
+                    val moved = CardStore.moveCards(this, from, to, cards.joinToString("\n"))
+                    Toast.makeText(this, "تم نقل " + moved + " كرت من " + from + " إلى " + to + " ريال", Toast.LENGTH_LONG).show()
+                    showMoveCards()
+                }
+                .show()
+        }
+
+        addText("ملاحظة: الكروت التي تم بيعها لا تظهر في المخزون، والتصحيح يخص الكروت المتبقية فقط.")
     }
 
     private fun showStock() {
