@@ -47,7 +47,14 @@ object BackupManager {
             }
         }
         zip.putNextEntry(ZipEntry("settings.txt"))
-        zip.write(("app=الكامل أونلاين\nversion=1.1.0\n").toByteArray(Charsets.UTF_8))
+        val settings = buildString {
+            append("app=الكامل أونلاين\n")
+            append("version=1.1.0\n")
+            CardStore.supportedAmounts.forEach { amount ->
+                append("stock_alert_threshold_$amount=${StockNotification.getThreshold(context, amount)}\n")
+            }
+        }
+        zip.write(settings.toByteArray(Charsets.UTF_8))
         zip.closeEntry()
     }
 }
