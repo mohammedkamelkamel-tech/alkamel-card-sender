@@ -10,6 +10,7 @@ import android.telephony.SmsManager
 import android.telephony.SmsMessage
 import android.util.Log
 import androidx.core.content.ContextCompat
+import java.security.MessageDigest
 import java.util.concurrent.Executors
 import java.util.regex.Pattern
 
@@ -50,6 +51,15 @@ class SmsReceiver : BroadcastReceiver() {
 
         val body = messages.joinToString("") { it.messageBody ?: "" }.trim()
         if (body.isBlank()) return
+
+        // منع معالجة نفس رسالة SMS مرتين، وهو أهم إجراء لمنع إرسال كرتين بسبب
+        // تكرار بث الرسالة من النظام أو إعادة تسليم الـ Intent.
+        val smsTimestamp = messages.firstOrNull()?.timestampMillis ?: 0L
+        val fingerprint = fingerprint(originating, displayOriginating, smsTimestamp, body)
+        if (isAlreadyProcessed(context, fingerprint)) {
+            Log.w(TAG, "Duplicate SMS ignored: $fingerprint")
+            return
+        }
 
         val lower = body.lowercase()
         val isJawali = lower.contains("استلمت") && lower.contains("yer")
@@ -108,6 +118,32 @@ class SmsReceiver : BroadcastReceiver() {
             OperationLog.finish(context, operationId, false, sendResult.error)
             Log.e(TAG, "Card send failed: amount=$amount phone=$destination reason=${sendResult.error}")
         }
+    }
+
+    private fun fingerprint(originating: String, displayOriginating: String, timestamp: Long, body: String): String {
+        val raw = "$originating|$displayOriginating|$timestamp|$body"
+        val digest = MessageDigest.getInstance("SHA-256").digest(raw.toByteArray(Charsets.UTF_8))
+        return digest.joinToString("") { "%02x".format(it) }
+    }
+
+    private fun isAlreadyProcessed(context: Context, fingerprint: String): Boolean {
+        val prefs = context.getSharedPreferences("processed_sms", Context.MODE_PRIVATE)
+        val now = System.currentTimeMillis()
+        val window = 7L * 24L * 60L * 60L * 1000L
+        val all = prefs.all
+        val editor = prefs.edit()
+        all.forEach { (key, value) ->
+            val time = value as? Long
+            if (time == null || now - time > window) editor.remove(key)
+        }
+        val previous = prefs.getLong(fingerprint, 0L)
+        if (previous > 0L && now - previous <= window) {
+            editor.apply()
+            return true
+        }
+        editor.putLong(fingerprint, now)
+        editor.apply()
+        return false
     }
 
     private fun normalizeSender(sender: String): String {
