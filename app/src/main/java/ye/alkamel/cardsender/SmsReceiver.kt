@@ -56,10 +56,6 @@ class SmsReceiver : BroadcastReceiver() {
         // تكرار بث الرسالة من النظام أو إعادة تسليم الـ Intent.
         val smsTimestamp = messages.firstOrNull()?.timestampMillis ?: 0L
         val fingerprint = fingerprint(originating, displayOriginating, smsTimestamp, body)
-        if (isAlreadyProcessed(context, fingerprint)) {
-            Log.w(TAG, "Duplicate SMS ignored: $fingerprint")
-            return
-        }
 
         val lower = body.lowercase()
         val isJawali = lower.contains("استلمت") && lower.contains("yer")
@@ -96,6 +92,13 @@ class SmsReceiver : BroadcastReceiver() {
 
         if (destination.isNullOrBlank()) {
             Log.d(TAG, "No destination phone found for amount=$amount body=$body")
+            return
+        }
+
+        // سجل الرسالة كمُعالجة فقط بعد التأكد أنها رسالة بيع صحيحة
+        // وتوفر رقم المشتري والفئة، حتى لا تتأثر الرسائل غير المتعلقة بالبيع.
+        if (isAlreadyProcessed(context, fingerprint)) {
+            Log.w(TAG, "Duplicate SMS ignored: $fingerprint")
             return
         }
 
