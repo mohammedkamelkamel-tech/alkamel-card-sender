@@ -64,13 +64,24 @@ object CardStore {
     fun addCards(context: Context, amount: Int, raw: String): Int = lock.withLock {
         initializeFiles(context)
         if (!categories(context).contains(amount)) return 0
-        val cards = raw.lines().map { it.trim() }.filter { it.isNotEmpty() && it.all(Char::isDigit) }
+        val cards = raw.lines().map { it.trim() }
+            .filter { it.isNotEmpty() && it.all(Char::isDigit) }
+            .distinct()
         if (cards.isEmpty()) return 0
+
+        // منع تكرار الكرت داخل المخزون أو إدخاله مرة أخرى بعد بيعه.
+        val existing = categories(context)
+            .flatMap { amountValue -> cards(context, amountValue) }
+            .toMutableSet()
+        existing += sales(context).map { it.card }
+        val uniqueCards = cards.filterNot { existing.contains(it) }
+        if (uniqueCards.isEmpty()) return 0
+
         val f = file(context, amount)
         val old = if (f.exists()) f.readText().trimEnd() else ""
-        val block = cards.joinToString("\n")
+        val block = uniqueCards.joinToString("\n")
         f.writeText(if (old.isBlank()) "$block\n" else "$old\n$block\n")
-        cards.size
+        uniqueCards.size
     }
 
     fun moveCards(context: Context, fromAmount: Int, toAmount: Int, raw: String): Int = lock.withLock {
@@ -165,6 +176,7 @@ object CardStore {
         return buildList {
             addAll(categories(context).map { file(context, it) })
             add(salesFile(context))
+            OperationLog.backupFile(context).takeIf { it.exists() }?.let { add(it) }
         }
     }
 }
