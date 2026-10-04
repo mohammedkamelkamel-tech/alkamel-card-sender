@@ -5,6 +5,7 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.net.Uri
+import android.util.Base64
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -109,7 +110,11 @@ object BackupManager {
             val tempCards = File(tempRoot, "cards").apply { mkdirs() }
             var hasCardFile = false
             var hasSales = false
+            var hasOperations = false
+            var hasAppSettings = false
             val thresholds = mutableMapOf<Int, Int>()
+            val alternateMappings = mutableMapOf<String, String>()
+            var messageTemplate: String? = null
 
             context.contentResolver.openInputStream(uri)?.use { input ->
                 ZipInputStream(BufferedInputStream(input)).use { zip ->
@@ -141,6 +146,37 @@ object BackupManager {
                                 BufferedOutputStream(out.outputStream()).use { zip.copyTo(it) }
                                 hasSales = true
                             }
+                            name == "operations.log" -> {
+                                val out = File(tempRoot, "operations.log")
+                                BufferedOutputStream(out.outputStream()).use { zip.copyTo(it) }
+                                hasOperations = true
+                            }
+                            name == "app_settings.txt" -> {
+                                val text = zip.readBytes().toString(Charsets.UTF_8)
+                                text.lineSequence().forEach { line ->
+                                    when {
+                                        line.startsWith("template_b64=") -> {
+                                            runCatching {
+                                                messageTemplate = String(
+                                                    Base64.decode(line.removePrefix("template_b64="), Base64.DEFAULT),
+                                                    Charsets.UTF_8
+                                                )
+                                            }
+                                        }
+                                        line.startsWith("map_b64=") -> {
+                                            val parts = line.removePrefix("map_b64=").split("|", limit = 2)
+                                            if (parts.size == 2) {
+                                                runCatching {
+                                                    val a = String(Base64.decode(parts[0], Base64.DEFAULT), Charsets.UTF_8)
+                                                    val p = String(Base64.decode(parts[1], Base64.DEFAULT), Charsets.UTF_8)
+                                                    if (a.isNotBlank() && p.isNotBlank()) alternateMappings[a] = p
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                hasAppSettings = true
+                            }
                             name == "settings.txt" -> {
                                 val text = zip.readBytes().toString(Charsets.UTF_8)
                                 text.lineSequence().forEach { line ->
@@ -162,7 +198,7 @@ object BackupManager {
                 }
             } ?: throw IllegalArgumentException("تعذر قراءة ملف النسخة الاحتياطية")
 
-            if (!hasCardFile && !hasSales) {
+            if (!hasCardFile && !hasSales && !hasOperations && !hasAppSettings) {
                 throw IllegalArgumentException("ملف النسخة الاحتياطية لا يحتوي على بيانات صالحة")
             }
 
@@ -181,6 +217,20 @@ object BackupManager {
                 File(tempRoot, "sales.csv").copyTo(File(context.filesDir, "sales.csv"), overwrite = true)
             } else {
                 File(context.filesDir, "sales.csv").writeText("time,amount,phone,card\n")
+            }
+
+            if (hasOperations) {
+                File(tempRoot, "operations.log").copyTo(OperationLog.backupFile(context), overwrite = true)
+            }
+
+            if (hasAppSettings) {
+                if (messageTemplate != null) {
+                    context.getSharedPreferences("message_settings", Context.MODE_PRIVATE)
+                        .edit().putString("template", messageTemplate).apply()
+                }
+                alternateMappings.forEach { (alternate, phone) ->
+                    ContactMap.setPhone(context, alternate, phone)
+                }
             }
 
             context.getSharedPreferences("card_categories", Context.MODE_PRIVATE)
@@ -212,7 +262,11 @@ object BackupManager {
     private fun writeZip(context: Context, zip: ZipOutputStream) {
         CardStore.backupFiles(context).forEach { file ->
             if (file.exists()) {
-                val relative = if (file.name == "sales.csv") "sales.csv" else "cards/${file.name}"
+                val relative = when (file.name) {
+                    "sales.csv" -> "sales.csv"
+                    "operations.log" -> "operations.log"
+                    else -> "cards/${file.name}"
+                }
                 zip.putNextEntry(ZipEntry(relative))
                 file.inputStream().use { it.copyTo(zip) }
                 zip.closeEntry()
@@ -221,12 +275,30 @@ object BackupManager {
         zip.putNextEntry(ZipEntry("settings.txt"))
         val settings = buildString {
             append("app=الكامل أونلاين\n")
-            append("version=1.1.0\n")
+            append("version=1.7.0\n")
             CardStore.categories(context).forEach { amount ->
                 append("stock_alert_threshold_$amount=${StockNotification.getThreshold(context, amount)}\n")
             }
         }
         zip.write(settings.toByteArray(Charsets.UTF_8))
+        zip.closeEntry()
+
+        zip.putNextEntry(ZipEntry("app_settings.txt"))
+        val prefs = context.getSharedPreferences("message_settings", Context.MODE_PRIVATE)
+        val template = prefs.getString("template", "") ?: ""
+        val appSettings = buildString {
+            append("template_b64=")
+            append(Base64.encodeToString(template.toByteArray(Charsets.UTF_8), Base64.NO_WRAP))
+            append("\n")
+            ContactMap.all(context).forEach { (alternate, phone) ->
+                append("map_b64=")
+                append(Base64.encodeToString(alternate.toByteArray(Charsets.UTF_8), Base64.NO_WRAP))
+                append("|")
+                append(Base64.encodeToString(phone.toByteArray(Charsets.UTF_8), Base64.NO_WRAP))
+                append("\n")
+            }
+        }
+        zip.write(appSettings.toByteArray(Charsets.UTF_8))
         zip.closeEntry()
     }
 }
