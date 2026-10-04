@@ -823,7 +823,7 @@ class MainActivity : Activity() {
         addText("اكتب النص الذي تريد إرساله مع رقم الكرت. الحد الأقصى للنص المخصص 44 حرفًا أو رقمًا أو مسافة. استخدم {السعر} ليضع التطبيق سعر الباقة تلقائيًا.")
         val prefs = getSharedPreferences("message_settings", MODE_PRIVATE)
         val input = EditText(this).apply {
-            text = prefs.getString("template", "شبكة الكامل - كرت {السعر} ريال - رقم الكرت👇\n")
+            setText(prefs.getString("template", "شبكة الكامل - كرت {السعر} ريال - رقم الكرت👇\n") ?: "")
             textSize = 17f
             gravity = Gravity.TOP or Gravity.RIGHT
             minLines = 5
