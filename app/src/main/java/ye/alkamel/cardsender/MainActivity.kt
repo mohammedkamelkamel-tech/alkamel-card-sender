@@ -277,6 +277,7 @@ class MainActivity : Activity() {
         nav.addView(navButton("الربط") { showAlternateNumbers() })
         nav.addView(navButton("المخزون") { showStock() })
         nav.addView(navButton("المبيعات") { showSales() })
+        nav.addView(navButton("رسالة الكرت") { showMessageSettings() })
         nav.addView(navButton("النسخ") { showBackup() })
         navScroll.addView(nav, LinearLayout.LayoutParams(-2, -1))
 
@@ -726,14 +727,139 @@ class MainActivity : Activity() {
 
     private fun showSales(){
         currentScreen = "sales"
-        content.removeAllViews();addBackButton();addTitle("الكروت التي تم بيعها");val sales=CardStore.sales(this);addText("عدد المبيعات المسجلة: ${sales.size}")
-        if(sales.isEmpty()){addText("لا توجد مبيعات مسجلة حتى الآن.");return}
-        sales.take(300).forEach{sale->
-            val box=LinearLayout(this).apply{orientation=LinearLayout.VERTICAL;setPadding(14,12,14,12);setBackgroundColor(Color.WHITE)}
-            box.addView(TextView(this).apply{text="كرت ${sale.amount} ريال  •  ${sale.time}";textSize=15f;typeface=Typeface.DEFAULT_BOLD})
-            box.addView(TextView(this).apply{text="الرقم: ${sale.phone}\nالكرت: ${sale.card}";textSize=14f})
-            content.addView(box,LinearLayout.LayoutParams(-1,-2).apply{setMargins(0,0,0,8)})
+        content.removeAllViews()
+        addBackButton()
+        addTitle("مبيعات اليوم")
+        val sales = CardStore.sales(this)
+        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+        val todaySales = sales.filter { it.time.startsWith(today) }
+
+        addText("تاريخ اليوم: $today")
+        if (todaySales.isEmpty()) {
+            addText("لا توجد مبيعات مسجلة اليوم.")
+            return
         }
+
+        val summary = todaySales.groupBy { it.amount }
+            .toSortedMap()
+        addSectionTitle("ملخص المبيعات حسب الباقة")
+        summary.forEach { (amount, items) ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(16.dp(), 13.dp(), 16.dp(), 13.dp())
+                background = roundedBackground(Color.WHITE, Color.rgb(222,229,236), 1.dp())
+            }
+            row.addView(TextView(this).apply {
+                text = "باقة $amount ريال"
+                textSize = 17f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.rgb(25,85,130))
+            })
+            row.addView(TextView(this).apply {
+                text = "عدد المبيعات: ${items.size} كرت"
+                textSize = 14f
+                setTextColor(Color.rgb(75,85,95))
+            })
+            row.addView(TextView(this).apply {
+                text = "السعر: $amount ريال  •  الإجمالي: ${amount * items.size} ريال"
+                textSize = 15f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.rgb(38,120,85))
+            })
+            content.addView(row, LinearLayout.LayoutParams(-1,-2).apply { setMargins(0,0,0,8.dp()) })
+        }
+
+        val totalCount = todaySales.size
+        val totalAmount = todaySales.sumOf { it.amount }
+        val totalBox = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(16.dp(), 16.dp(), 16.dp(), 16.dp())
+            background = gradientBackground(Color.rgb(18,82,133), Color.rgb(31,125,188), 12.dp())
+        }
+        totalBox.addView(TextView(this).apply {
+            text = "إجمالي مبيعات اليوم"
+            textSize = 18f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+        })
+        totalBox.addView(TextView(this).apply {
+            text = "$totalCount كرت  •  $totalAmount ريال"
+            textSize = 22f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            setPadding(0, 6.dp(), 0, 0)
+        })
+        content.addView(totalBox, LinearLayout.LayoutParams(-1,-2).apply { setMargins(0,8.dp(),0,14.dp()) })
+
+        addSectionTitle("تفاصيل المبيعات")
+        todaySales.take(300).forEach { sale ->
+            val box = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(14.dp(),12.dp(),14.dp(),12.dp())
+                setBackgroundColor(Color.WHITE)
+            }
+            box.addView(TextView(this).apply {
+                text = "كرت ${sale.amount} ريال  •  ${sale.time.substringAfter(" ")}"
+                textSize = 15f
+                typeface = Typeface.DEFAULT_BOLD
+            })
+            box.addView(TextView(this).apply {
+                text = "الرقم: ${sale.phone}\nالكرت: ${sale.card}"
+                textSize = 14f
+            })
+            content.addView(box,LinearLayout.LayoutParams(-1,-2).apply{setMargins(0,0,0,8.dp())})
+        }
+    }
+
+    private fun showMessageSettings() {
+        currentScreen = "message_settings"
+        content.removeAllViews()
+        addBackButton()
+        addTitle("نص رسالة الكرت")
+        addText("اكتب النص الذي تريد إرساله مع رقم الكرت. الحد الأقصى للنص المخصص 44 حرفًا أو رقمًا أو مسافة. استخدم {السعر} ليضع التطبيق سعر الباقة تلقائيًا.")
+        val prefs = getSharedPreferences("message_settings", MODE_PRIVATE)
+        val input = EditText(this).apply {
+            text = prefs.getString("template", "شبكة الكامل - كرت {السعر} ريال - رقم الكرت👇\n")
+            textSize = 17f
+            gravity = Gravity.TOP or Gravity.RIGHT
+            minLines = 5
+            maxLines = 5
+            setTextColor(Color.rgb(25,25,25))
+            setHintTextColor(Color.rgb(110,110,110))
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+        }
+        content.addView(input, LinearLayout.LayoutParams(-1, 150.dp()))
+        val counter = TextView(this).apply {
+            textSize = 13f
+            setTextColor(Color.rgb(60,100,140))
+            gravity = Gravity.RIGHT
+            setPadding(0,6.dp(),0,10.dp())
+        }
+        content.addView(counter)
+        fun updateCounter() {
+            val n = input.text.toString().length
+            counter.text = "$n / 44 حرف"
+            counter.setTextColor(if (n <= 44) Color.rgb(45,120,80) else Color.rgb(190,45,45))
+        }
+        input.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { updateCounter() }
+            override fun afterTextChanged(s: android.text.Editable?) {}
+        })
+        addButton("حفظ نص الرسالة", true) {
+            val value = input.text.toString()
+            if (value.length > 44) {
+                Toast.makeText(this, "النص يجب ألا يتجاوز 44 حرفًا", Toast.LENGTH_LONG).show()
+            } else {
+                prefs.edit().putString("template", value).apply()
+                Toast.makeText(this, "تم حفظ نص الرسالة", Toast.LENGTH_SHORT).show()
+            }
+        }
+        addText("مثال: شبكة الكامل - كرت {السعر} ريال - رقم الكرت👇")
+        updateCounter()
     }
 
     private fun showBackup() {
