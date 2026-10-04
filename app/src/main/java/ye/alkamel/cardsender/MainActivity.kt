@@ -272,15 +272,15 @@ class MainActivity : Activity() {
             layoutDirection = View.LAYOUT_DIRECTION_RTL
             gravity = Gravity.CENTER_VERTICAL
         }
-        nav.addView(navButton("الرئيسية") { showDashboard() })
-        nav.addView(navButton("إضافة") { showAddCards() })
-        nav.addView(navButton("الفئات") { showCategories() })
-        nav.addView(navButton("الربط") { showAlternateNumbers() })
-        nav.addView(navButton("المخزون") { showStock() })
-        nav.addView(navButton("المبيعات") { showSales() })
-        nav.addView(navButton("سجل العمليات") { showOperations() })
-        nav.addView(navButton("رسالة الكرت") { showMessageSettings() })
-        nav.addView(navButton("النسخ") { showBackup() })
+        nav.addView(navButton("🏠 الرئيسية") { showDashboard() })
+        nav.addView(navButton("➕ إضافة") { showAddCards() })
+        nav.addView(navButton("💳 الفئات") { showCategories() })
+        nav.addView(navButton("🔗 الربط") { showAlternateNumbers() })
+        nav.addView(navButton("📦 المخزون") { showStock() })
+        nav.addView(navButton("💰 المبيعات") { showSales() })
+        nav.addView(navButton("📋 سجل العمليات") { showOperations() })
+        nav.addView(navButton("✉️ رسالة الكرت") { showMessageSettings() })
+        nav.addView(navButton("💾 النسخ") { showBackup() })
         navScroll.addView(nav, LinearLayout.LayoutParams(-2, -1))
 
         val scroll = ScrollView(this)
@@ -366,15 +366,15 @@ class MainActivity : Activity() {
         }
 
         addSectionTitle("إدارة سريعة")
-        addButton("إضافة فئة كروت جديدة", true) { showCategories() }
-        addButton("ربط رقم بديل برقم جوال", true) { showAlternateNumbers() }
-        addButton("عرض أرقام الكروت المتبقية لكل فئة", true) { showStock() }
+        addButton("➕ إضافة فئة كروت جديدة", true) { showCategories() }
+        addButton("🔗 ربط رقم بديل برقم جوال", true) { showAlternateNumbers() }
+        addButton("📦 عرض أرقام الكروت المتبقية لكل فئة", true) { showStock() }
 
         addSectionTitle("اختصارات")
-        addButton("إضافة كروت جديدة") { showAddCards() }
-        addButton("معرفة الكروت التي تم بيعها") { showSales() }
-        addButton("عرض سجل الإرسال والعمليات") { showOperations() }
-        addButton("إعدادات تنبيه نقص المخزون") { showStockAlertSettings() }
+        addButton("➕ إضافة كروت جديدة") { showAddCards() }
+        addButton("💰 معرفة الكروت التي تم بيعها") { showSales() }
+        addButton("📋 عرض سجل الإرسال والعمليات") { showOperations() }
+        addButton("🔔 إعدادات تنبيه نقص المخزون") { showStockAlertSettings() }
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
             if (BackgroundHelper.isIgnoringBatteryOptimizations(this)) {
@@ -387,7 +387,7 @@ class MainActivity : Activity() {
             }
         }
 
-        addButton("إنشاء نسخة احتياطية الآن") {
+        addButton("💾 إنشاء نسخة احتياطية الآن") {
             val name = BackupManager.createBackup(this)
             Toast.makeText(
                 this,
@@ -395,9 +395,9 @@ class MainActivity : Activity() {
                 Toast.LENGTH_LONG
             ).show()
         }
-        addButton("استعادة نسخة احتياطية") {
+        addButton("♻️ استعادة نسخة احتياطية") {
             android.app.AlertDialog.Builder(this)
-                .setTitle("استعادة نسخة احتياطية")
+                .setTitle("♻️ استعادة نسخة احتياطية")
                 .setMessage("سيتم استبدال المخزون الحالي والمبيعات بالبيانات الموجودة في النسخة الاحتياطية. تأكد من اختيار الملف الصحيح قبل المتابعة.")
                 .setNegativeButton("إلغاء", null)
                 .setPositiveButton("اختيار ملف النسخة") { _, _ ->
@@ -429,8 +429,8 @@ class MainActivity : Activity() {
         val spinner=Spinner(this);spinner.setBackgroundColor(Color.WHITE);spinner.adapter=ArrayAdapter(this,android.R.layout.simple_spinner_dropdown_item,categories.map{"$it ريال"});content.addView(spinner)
         val input=EditText(this).apply{hint="مثال:\n18466933\n10356433\n...";setTextColor(Color.rgb(25,25,25));setHintTextColor(Color.rgb(110,110,110));textSize=17f;minLines=10;gravity=Gravity.TOP or Gravity.RIGHT;inputType=android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE}
         content.addView(input,LinearLayout.LayoutParams(-1,0,1f))
-        addButton("حفظ الكروت"){val amount=categories[spinner.selectedItemPosition];val added=CardStore.addCards(this,amount,input.text.toString());Toast.makeText(this,if(added>0)"تم حفظ $added كرت من فئة $amount ريال" else "لم يتم العثور على أرقام كروت صحيحة",Toast.LENGTH_LONG).show();if(added>0)input.setText("")}
-        addButton("تصحيح فئة الكروت / نقل الكروت") { showMoveCards() }
+        addButton("💾 حفظ الكروت"){val amount=categories[spinner.selectedItemPosition];val added=CardStore.addCards(this,amount,input.text.toString());Toast.makeText(this,if(added>0)"تم حفظ $added كرت من فئة $amount ريال" else "لم يتم العثور على أرقام كروت صحيحة",Toast.LENGTH_LONG).show();if(added>0)input.setText("")}
+        addButton("🔄 تصحيح فئة الكروت / نقل الكروت") { showMoveCards() }
         addText("المخزون الحالي: "+categories.joinToString(" | "){"$it=${CardStore.count(this,it)}"})
     }
 
@@ -1012,7 +1012,7 @@ class MainActivity : Activity() {
         fromButton.setOnClickListener { chooseDate(fromCalendar, fromButton, "من تاريخ") }
         toButton.setOnClickListener { chooseDate(toCalendar, toButton, "إلى تاريخ") }
 
-        addButton("عرض التقرير", true) {
+        addButton("📊 عرض التقرير", true) {
             val fromDate = formatDate(fromCalendar)
             val toDate = formatDate(toCalendar)
 
@@ -1280,7 +1280,7 @@ class MainActivity : Activity() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { updateCounter() }
             override fun afterTextChanged(s: android.text.Editable?) {}
         })
-        addButton("حفظ نص الرسالة", true) {
+        addButton("💾 حفظ نص الرسالة", true) {
             val value = input.text.toString()
             if (value.length > 44) {
                 Toast.makeText(this, "النص يجب ألا يتجاوز 44 حرفًا", Toast.LENGTH_LONG).show()
@@ -1304,7 +1304,7 @@ class MainActivity : Activity() {
             .getString("last_backup", "لم يتم إنشاء نسخة بعد")
         addText("آخر نسخة احتياطية: " + last)
 
-        addButton("إنشاء نسخة احتياطية الآن", true) {
+        addButton("💾 إنشاء نسخة احتياطية الآن", true) {
             val name = BackupManager.createBackup(this)
             Toast.makeText(
                 this,
@@ -1314,9 +1314,9 @@ class MainActivity : Activity() {
             showBackup()
         }
 
-        addButton("استعادة نسخة احتياطية") {
+        addButton("♻️ استعادة نسخة احتياطية") {
             android.app.AlertDialog.Builder(this)
-                .setTitle("استعادة نسخة احتياطية")
+                .setTitle("♻️ استعادة نسخة احتياطية")
                 .setMessage("سيتم استبدال المخزون الحالي والمبيعات بالبيانات الموجودة في النسخة الاحتياطية. تأكد من اختيار الملف الصحيح قبل المتابعة.")
                 .setNegativeButton("إلغاء", null)
                 .setPositiveButton("اختيار ملف النسخة") { _, _ ->
@@ -1333,7 +1333,7 @@ class MainActivity : Activity() {
     }
 
     private fun addBackButton() {
-        addButton("رجوع إلى الرئيسية") { showDashboard() }
+        addButton("🏠 رجوع إلى الرئيسية") { showDashboard() }
     }
 
     private fun addTitle(text: String) {
