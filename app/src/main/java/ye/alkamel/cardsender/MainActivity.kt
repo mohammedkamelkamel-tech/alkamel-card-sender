@@ -621,9 +621,9 @@ class MainActivity : Activity() {
         content.removeAllViews()
         addBackButton()
         addTitle("ربط الأرقام البديلة")
-        addText("إذا وصلت رسالة جيب برقم بديل مثل 164783، اربطه برقم الجوال الحقيقي. سيُستخدم نفس الربط لجميع فئات الكروت.")
+        addText("إذا وصلت رسالة جيب برقم بديل مثل 469331، اربطه برقم الجوال الحقيقي. سيُستخدم نفس الربط لجميع فئات الكروت.")
         val alternate = EditText(this).apply {
-            hint = "الرقم البديل مثل 164783"
+            hint = "الرقم البديل مثل 469331"
             inputType = android.text.InputType.TYPE_CLASS_NUMBER
             textSize = 18f
             setTextColor(Color.rgb(25,25,25))
