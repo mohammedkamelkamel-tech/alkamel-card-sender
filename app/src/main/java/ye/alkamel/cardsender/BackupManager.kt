@@ -275,7 +275,7 @@ object BackupManager {
         zip.putNextEntry(ZipEntry("settings.txt"))
         val settings = buildString {
             append("app=الكامل أونلاين\n")
-            append("version=1.7.0\n")
+            append("version=1.9.0\n")
             CardStore.categories(context).forEach { amount ->
                 append("stock_alert_threshold_$amount=${StockNotification.getThreshold(context, amount)}\n")
             }
