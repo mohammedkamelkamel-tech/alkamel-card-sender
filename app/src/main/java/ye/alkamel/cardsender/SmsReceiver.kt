@@ -40,9 +40,6 @@ class SmsReceiver : BroadcastReceiver() {
         }
         if (messages.isEmpty()) return
 
-        // SECURITY: card sending is allowed only when Android identifies the
-        // SMS sender as the trusted Jaib/Jawali sender name. A matching message
-        // body from any ordinary person must never trigger a card send.
         val originating = messages.firstOrNull()?.originatingAddress?.trim().orEmpty()
         val displayOriginating = messages.firstOrNull()?.displayOriginatingAddress?.trim().orEmpty()
         val senderHint = when {
@@ -59,8 +56,6 @@ class SmsReceiver : BroadcastReceiver() {
         val isJaib = lower.contains("اضيف") && lower.contains("تحويل") && lower.contains("من")
         if (!isJawali && !isJaib) return
 
-        // The sender name is mandatory: Jaib messages must come from "jaib",
-        // and Jawali messages must come from "jawali".
         if (isJaib && senderHint != "jaib") return
         if (isJawali && senderHint != "jawali") return
 
@@ -117,9 +112,6 @@ class SmsReceiver : BroadcastReceiver() {
     }
 
     private fun findAlternateDestination(context: Context, body: String): String? {
-        // Jaib can put the sender's name between "من" and the alternate number:
-        // "من كمال العجاج 164783". Extract the last numeric token after "من"
-        // so the customer's name does not prevent the mapping from working.
         val fromIndex = body.lastIndexOf("من")
         if (fromIndex < 0) return null
 
@@ -140,15 +132,17 @@ class SmsReceiver : BroadcastReceiver() {
             val prefs = context.getSharedPreferences("message_settings", Context.MODE_PRIVATE)
             val savedTemplate = prefs.getString(
                 "template",
-                "شبكة الكامل - كرت {السعر} ريال - رقم الكرت👇\\n"
+                "شبكة الكامل - كرت {السعر} ريال - رقم الكرت👇\n"
             ).orEmpty()
 
-            // The user can customize up to 44 characters. The final SMS is capped
-            // at 54 characters, so long card numbers automatically reduce the
-            // available template portion without cutting the card number.
+            // Convert a user-entered literal "\\n" into a real line break.
+            // This prevents the SMS from displaying the characters "\\n".
             val template = savedTemplate
+                .replace("\\r\\n", "\n")
+                .replace("\\n", "\n")
                 .replace("{السعر}", amount.toString())
                 .take(44)
+
             val availableForTemplate = (54 - card.length).coerceAtLeast(0)
             val safeTemplate = template.take(availableForTemplate)
             val message = safeTemplate + card
