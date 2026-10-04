@@ -278,6 +278,7 @@ class MainActivity : Activity() {
         nav.addView(navButton("الربط") { showAlternateNumbers() })
         nav.addView(navButton("المخزون") { showStock() })
         nav.addView(navButton("المبيعات") { showSales() })
+        nav.addView(navButton("سجل العمليات") { showOperations() })
         nav.addView(navButton("رسالة الكرت") { showMessageSettings() })
         nav.addView(navButton("النسخ") { showBackup() })
         navScroll.addView(nav, LinearLayout.LayoutParams(-2, -1))
@@ -329,6 +330,15 @@ class MainActivity : Activity() {
         addTitle("لوحة التحكم")
         addText("نظرة سريعة على مخزون الكروت والمبيعات وحالة الشبكة.")
 
+        val pendingCount = OperationLog.pending(this).size
+        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+        val todaySales = CardStore.sales(this).filter { it.time.startsWith(today) }
+        addText("مبيعات اليوم: ${todaySales.size} كرت • ${todaySales.sumOf { it.amount }} ريال  •  عمليات معلقة: ${pendingCount}")
+
+        if (pendingCount > 0) {
+            addButton("⚠️ مراجعة العمليات المعلقة", true) { showOperations() }
+        }
+
         val stats = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             layoutDirection = View.LAYOUT_DIRECTION_RTL
@@ -363,6 +373,7 @@ class MainActivity : Activity() {
         addSectionTitle("اختصارات")
         addButton("إضافة كروت جديدة") { showAddCards() }
         addButton("معرفة الكروت التي تم بيعها") { showSales() }
+        addButton("عرض سجل الإرسال والعمليات") { showOperations() }
         addButton("إعدادات تنبيه نقص المخزون") { showStockAlertSettings() }
         addButton("إنشاء نسخة احتياطية الآن") {
             val name = BackupManager.createBackup(this)
@@ -833,6 +844,82 @@ class MainActivity : Activity() {
                 textSize = 14f
             })
             content.addView(box,LinearLayout.LayoutParams(-1,-2).apply{setMargins(0,0,0,8.dp())})
+        }
+    }
+
+    private fun showOperations() {
+        currentScreen = "operations"
+        content.removeAllViews()
+        addBackButton()
+        addTitle("سجل العمليات")
+        addText("سجل محفوظ لعمليات إرسال الكروت: ناجحة، فاشلة، أو ما زالت قيد المعالجة.")
+
+        val pending = OperationLog.pending(this)
+        if (pending.isNotEmpty()) {
+            addSectionTitle("⚠️ عمليات معلقة")
+            addText("هذه العمليات لم تكتمل بصورة مؤكدة. لا تعاد تلقائياً حتى لا يتم إرسال نفس الكرت مرتين.")
+            pending.forEach { op ->
+                val box = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(14.dp(), 12.dp(), 14.dp(), 12.dp())
+                    background = roundedBackground(Color.rgb(255, 248, 230), Color.rgb(230, 190, 100), 1.dp())
+                }
+                box.addView(TextView(this@MainActivity).apply {
+                    text = "قيد المعالجة • ${op.amount} ريال • ${op.time}"
+                    textSize = 15f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setTextColor(Color.rgb(130, 85, 15))
+                })
+                box.addView(TextView(this@MainActivity).apply {
+                    text = "الرقم: ${op.phone}\nالكرت: ${op.card}"
+                    textSize = 14f
+                    setTextColor(Color.rgb(50, 50, 50))
+                })
+                content.addView(box, LinearLayout.LayoutParams(-1, -2).apply {
+                    setMargins(0, 0, 0, 8.dp())
+                })
+            }
+        }
+
+        val operations = OperationLog.recent(this, 300)
+        val success = operations.count { it.status == "SUCCESS" }
+        val failed = operations.count { it.status == "FAILED" }
+        addSectionTitle("ملخص السجل")
+        addText("ناجحة: $success   •   فاشلة: $failed   •   معلقة: ${pending.size}")
+
+        addSectionTitle("آخر العمليات")
+        if (operations.isEmpty()) {
+            addText("لا توجد عمليات مسجلة بعد.")
+            return
+        }
+
+        operations.forEach { op ->
+            val statusText = when (op.status) {
+                "SUCCESS" -> "✅ ناجحة"
+                "FAILED" -> "❌ فاشلة"
+                else -> "⏳ قيد المعالجة"
+            }
+            val box = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(14.dp(), 11.dp(), 14.dp(), 11.dp())
+                setBackgroundColor(Color.WHITE)
+            }
+            box.addView(TextView(this@MainActivity).apply {
+                text = "$statusText • ${op.amount} ريال • ${op.time}"
+                textSize = 14.5f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.rgb(35, 45, 55))
+            })
+            box.addView(TextView(this@MainActivity).apply {
+                text = "الرقم: ${op.phone}\nالكرت: ${op.card}" +
+                    if (op.error.isNotBlank()) "\nالسبب: ${op.error}" else ""
+                textSize = 13.5f
+                setTextColor(Color.rgb(75, 85, 95))
+                setPadding(0, 5.dp(), 0, 0)
+            })
+            content.addView(box, LinearLayout.LayoutParams(-1, -2).apply {
+                setMargins(0, 0, 0, 7.dp())
+            })
         }
     }
 
