@@ -2,35 +2,25 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
-
 android {
     namespace = "ye.alkamel.cardsender"
     compileSdk = 35
-
     defaultConfig {
         applicationId = "ye.alkamel.cardsender"
         minSdk = 24
         targetSdk = 35
-        versionCode = 18
-        versionName = "1.8.0"
+        versionCode = 19
+        versionName = "1.9.0"
     }
-
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
+    kotlinOptions { jvmTarget = "17" }
     buildTypes {
-        getByName("release") {
-            signingConfig = signingConfigs.getByName("debug")
-        }
+        getByName("release") { signingConfig = signingConfigs.getByName("debug") }
     }
 }
-
 dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
