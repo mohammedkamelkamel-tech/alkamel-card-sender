@@ -763,43 +763,138 @@ class MainActivity : Activity() {
         content.removeAllViews()
         addBackButton()
         addTitle("مبيعات اليوم")
+
         val sales = CardStore.sales(this)
         val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
         val todaySales = sales.filter { it.time.startsWith(today) }
 
         addText("تاريخ اليوم: $today")
-        if (todaySales.isEmpty()) {
-            addText("لا توجد مبيعات مسجلة اليوم.")
-            return
+
+        addSectionTitle("البحث عن كرت")
+        addText("أدخل رقم الكرت لمعرفة تفاصيل شرائه وتاريخ ووقت البيع.")
+        val searchInput = EditText(this).apply {
+            hint = "أدخل رقم الكرت"
+            textSize = 17f
+            setSingleLine(true)
+            gravity = Gravity.RIGHT or Gravity.CENTER_VERTICAL
+            setTextColor(Color.rgb(25,25,25))
+            setHintTextColor(Color.rgb(110,110,110))
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            background = roundedBackground(Color.WHITE, Color.rgb(205,215,225), 1.dp())
+            setPadding(14.dp(), 0, 14.dp(), 0)
+        }
+        content.addView(searchInput, LinearLayout.LayoutParams(-1, 52.dp()).apply {
+            setMargins(0, 0, 0, 8.dp())
+        })
+
+        val searchResult = TextView(this).apply {
+            textSize = 15f
+            setTextColor(Color.rgb(45,55,65))
+            setPadding(14.dp(), 10.dp(), 14.dp(), 10.dp())
+            visibility = View.GONE
+        }
+        content.addView(searchResult, LinearLayout.LayoutParams(-1, -2).apply {
+            setMargins(0, 0, 0, 12.dp())
+        })
+
+        fun searchCard() {
+            val query = searchInput.text.toString().trim()
+            if (query.isBlank()) {
+                searchResult.visibility = View.GONE
+                Toast.makeText(this, "أدخل رقم الكرت أولًا", Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            val matches = sales.filter { it.card == query }
+            if (matches.isEmpty()) {
+                searchResult.text = "لم يتم العثور على هذا الكرت في سجل المبيعات."
+                searchResult.setTextColor(Color.rgb(180, 55, 55))
+                searchResult.background = roundedBackground(Color.rgb(255, 245, 245), Color.rgb(235, 190, 190), 1.dp())
+                searchResult.visibility = View.VISIBLE
+                return
+            }
+
+            searchResult.setTextColor(Color.rgb(35, 75, 95))
+            searchResult.background = roundedBackground(Color.rgb(240, 248, 252), Color.rgb(190, 215, 230), 1.dp())
+            searchResult.text = "تم العثور على ${matches.size} عملية شراء لهذا الكرت."
+            searchResult.visibility = View.VISIBLE
+
+            matches.forEach { sale ->
+                val parts = sale.time.split(" ", limit = 2)
+                val date = parts.getOrNull(0) ?: sale.time
+                val time = parts.getOrNull(1) ?: ""
+                val box = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(14.dp(), 12.dp(), 14.dp(), 12.dp())
+                    background = roundedBackground(Color.WHITE, Color.rgb(220, 228, 235), 1.dp())
+                }
+                box.addView(TextView(this).apply {
+                    text = "الكرت: ${sale.card}"
+                    textSize = 16f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setTextColor(Color.rgb(31, 91, 139))
+                })
+                box.addView(TextView(this).apply {
+                    text = "الباقة: ${sale.amount} ريال"
+                    textSize = 15f
+                    setTextColor(Color.rgb(45, 55, 65))
+                    setPadding(0, 5.dp(), 0, 0)
+                })
+                box.addView(TextView(this).apply {
+                    text = "رقم المشتري: ${sale.phone}"
+                    textSize = 15f
+                    setTextColor(Color.rgb(45, 55, 65))
+                    setPadding(0, 4.dp(), 0, 0)
+                })
+                box.addView(TextView(this).apply {
+                    text = "تاريخ الشراء: $date\nوقت الشراء: $time"
+                    textSize = 15f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setTextColor(Color.rgb(38, 120, 85))
+                    setPadding(0, 5.dp(), 0, 0)
+                })
+                content.addView(box, LinearLayout.LayoutParams(-1, -2).apply {
+                    setMargins(0, 0, 0, 8.dp())
+                })
+            }
         }
 
-        val summary = todaySales.groupBy { it.amount }
-            .toSortedMap()
+        addButton("🔎 بحث عن الكرت", true) { searchCard() }
+        searchInput.setOnEditorActionListener { _, _, _ ->
+            searchCard()
+            true
+        }
+
         addSectionTitle("ملخص المبيعات حسب الباقة")
-        summary.forEach { (amount, items) ->
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                setPadding(16.dp(), 13.dp(), 16.dp(), 13.dp())
-                background = roundedBackground(Color.WHITE, Color.rgb(222,229,236), 1.dp())
+        val summary = todaySales.groupBy { it.amount }.toSortedMap()
+        if (summary.isEmpty()) {
+            addText("لا توجد مبيعات مسجلة اليوم.")
+        } else {
+            summary.forEach { (amount, items) ->
+                val row = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(16.dp(), 13.dp(), 16.dp(), 13.dp())
+                    background = roundedBackground(Color.WHITE, Color.rgb(222,229,236), 1.dp())
+                }
+                row.addView(TextView(this).apply {
+                    text = "باقة $amount ريال"
+                    textSize = 17f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setTextColor(Color.rgb(25,85,130))
+                })
+                row.addView(TextView(this).apply {
+                    text = "عدد المبيعات: ${items.size} كرت"
+                    textSize = 14f
+                    setTextColor(Color.rgb(75,85,95))
+                })
+                row.addView(TextView(this).apply {
+                    text = "السعر: $amount ريال  •  الإجمالي: ${amount * items.size} ريال"
+                    textSize = 15f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setTextColor(Color.rgb(38,120,85))
+                })
+                content.addView(row, LinearLayout.LayoutParams(-1,-2).apply { setMargins(0,0,0,8.dp()) })
             }
-            row.addView(TextView(this).apply {
-                text = "باقة $amount ريال"
-                textSize = 17f
-                typeface = Typeface.DEFAULT_BOLD
-                setTextColor(Color.rgb(25,85,130))
-            })
-            row.addView(TextView(this).apply {
-                text = "عدد المبيعات: ${items.size} كرت"
-                textSize = 14f
-                setTextColor(Color.rgb(75,85,95))
-            })
-            row.addView(TextView(this).apply {
-                text = "السعر: $amount ريال  •  الإجمالي: ${amount * items.size} ريال"
-                textSize = 15f
-                typeface = Typeface.DEFAULT_BOLD
-                setTextColor(Color.rgb(38,120,85))
-            })
-            content.addView(row, LinearLayout.LayoutParams(-1,-2).apply { setMargins(0,0,0,8.dp()) })
         }
 
         val totalCount = todaySales.size
@@ -807,8 +902,8 @@ class MainActivity : Activity() {
         val totalBox = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(16.dp(), 16.dp(), 16.dp(), 16.dp())
-            background = gradientBackground(Color.rgb(18,82,133), Color.rgb(31,125,188), 12.dp())
+            setPadding(16.dp(),16.dp(),16.dp(),16.dp())
+            background = gradientBackground(Color.rgb(18,82,133),Color.rgb(31,125,188),12.dp())
         }
         totalBox.addView(TextView(this).apply {
             text = "إجمالي مبيعات اليوم"
@@ -823,11 +918,11 @@ class MainActivity : Activity() {
             typeface = Typeface.DEFAULT_BOLD
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
-            setPadding(0, 6.dp(), 0, 0)
+            setPadding(0,6.dp(),0,0)
         })
         content.addView(totalBox, LinearLayout.LayoutParams(-1,-2).apply { setMargins(0,8.dp(),0,14.dp()) })
 
-        addSectionTitle("تفاصيل المبيعات")
+        addSectionTitle("تفاصيل مبيعات اليوم")
         todaySales.take(300).forEach { sale ->
             val box = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
