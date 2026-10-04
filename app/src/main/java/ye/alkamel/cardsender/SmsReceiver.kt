@@ -95,11 +95,18 @@ class SmsReceiver : BroadcastReceiver() {
             return
         }
 
-        if (sendSms(context, destination, card, amount)) {
+        val operationId = OperationLog.start(context, amount, destination, card)
+        val sendResult = sendSms(context, destination, card, amount)
+
+        if (sendResult.success) {
             CardStore.recordSale(context, amount, destination, card)
+            OperationLog.finish(context, operationId, true)
             StockNotification.notifyIfLow(context, amount, CardStore.count(context, amount))
+            Log.i(TAG, "Card sent successfully: amount=$amount phone=$destination")
         } else {
             CardStore.returnCard(context, amount, card)
+            OperationLog.finish(context, operationId, false, sendResult.error)
+            Log.e(TAG, "Card send failed: amount=$amount phone=$destination reason=${sendResult.error}")
         }
     }
 
@@ -127,7 +134,9 @@ class SmsReceiver : BroadcastReceiver() {
         return phone
     }
 
-    private fun sendSms(context: Context, phone: String, card: String, amount: Int): Boolean {
+    private data class SendResult(val success: Boolean, val error: String = "")
+
+    private fun sendSms(context: Context, phone: String, card: String, amount: Int): SendResult {
         return try {
             val prefs = context.getSharedPreferences("message_settings", Context.MODE_PRIVATE)
             val savedTemplate = prefs.getString(
@@ -151,10 +160,10 @@ class SmsReceiver : BroadcastReceiver() {
             val parts = smsManager.divideMessage(message)
             if (parts.size == 1) smsManager.sendTextMessage(phone, null, message, null, null)
             else smsManager.sendMultipartTextMessage(phone, null, ArrayList(parts), null, null)
-            true
+            SendResult(true)
         } catch (e: Exception) {
             Log.e(TAG, "SMS send failed", e)
-            false
+            SendResult(false, e.message ?: "تعذر إرسال الرسالة")
         }
     }
 }
