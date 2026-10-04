@@ -679,51 +679,72 @@ class MainActivity : Activity() {
         content.removeAllViews()
         addBackButton()
         addTitle("تنبيه نقص المخزون")
-        addText("حدد الحد لكل فئة. عندما يصل المخزون إلى هذا العدد أو أقل، يظهر تنبيه جديد مع كل عملية بيع من نفس الفئة فقط. اكتب 0 لإيقاف التنبيه لهذه الفئة.")
+        addText("حدد الحد لكل فئة. كل فئة جديدة تضيفها ستظهر هنا تلقائيًا ويُضبط لها حد افتراضي 20 كرت.")
 
-        CardStore.categories(this).forEach { amount ->
-            val row = LinearLayout(this).apply {
+        fun renderAlertCategories() {
+            val marker = content.findViewWithTag<View>("stock_alert_categories")
+            if (marker != null) content.removeView(marker)
+            val list = LinearLayout(this).apply {
+                tag = "stock_alert_categories"
                 orientation = LinearLayout.VERTICAL
-                setPadding(14, 12, 14, 12)
-                setBackgroundColor(Color.WHITE)
             }
-            row.addView(TextView(this).apply {
-                text = "$amount ريال"
-                textSize = 17f
-                typeface = Typeface.DEFAULT_BOLD
-                setTextColor(Color.rgb(30,30,30))
-            })
-            val input = EditText(this).apply {
-                inputType = android.text.InputType.TYPE_CLASS_NUMBER
-                setText(StockNotification.getThreshold(this@MainActivity, amount).toString())
-                hint = "مثال: 20"
-                textSize = 17f
-                setTextColor(Color.rgb(25,25,25))
-                setHintTextColor(Color.rgb(110,110,110))
-                gravity = Gravity.RIGHT
-            }
-            row.addView(input, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0,8,0,4) })
-            row.addView(TextView(this).apply {
-                text = "0 = إيقاف التنبيه لهذه الفئة"
-                textSize = 13f
-                setTextColor(Color.rgb(80,80,80))
-            })
-            row.addView(Button(this).apply {
-                text = "حفظ حد $amount ريال"
-                setTextColor(Color.WHITE)
-                setBackgroundColor(Color.rgb(35,95,150))
-                setOnClickListener {
-                    val value = input.text.toString().trim().toIntOrNull()
-                    if (value == null || value < 0 || value > 9999) {
-                        Toast.makeText(this@MainActivity, "أدخل رقماً من 0 إلى 9999", Toast.LENGTH_LONG).show()
-                    } else {
-                        StockNotification.setThreshold(this@MainActivity, amount, value)
-                        Toast.makeText(this@MainActivity, "تم حفظ حد التنبيه لفئة $amount ريال", Toast.LENGTH_SHORT).show()
-                    }
+            CardStore.categories(this).forEach { amount ->
+                val row = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(14, 12, 14, 12)
+                    setBackgroundColor(Color.WHITE)
                 }
-            }, LinearLayout.LayoutParams(-1,-2).apply { setMargins(0,6,0,8) })
-            content.addView(row, LinearLayout.LayoutParams(-1,-2).apply { setMargins(0,0,0,10) })
+                row.addView(TextView(this).apply {
+                    text = "$amount ريال"
+                    textSize = 17f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setTextColor(Color.rgb(30,30,30))
+                })
+                val input = EditText(this).apply {
+                    inputType = android.text.InputType.TYPE_CLASS_NUMBER
+                    setText(StockNotification.getThreshold(this@MainActivity, amount).toString())
+                    hint = "مثال: 20"
+                    textSize = 17f
+                    setTextColor(Color.rgb(25,25,25))
+                    setHintTextColor(Color.rgb(110,110,110))
+                    gravity = Gravity.RIGHT
+                }
+                row.addView(input, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0,8,0,4) })
+                row.addView(TextView(this).apply {
+                    text = "المخزون الحالي: ${CardStore.count(this@MainActivity, amount)} كرت   •   0 = إيقاف التنبيه"
+                    textSize = 13f
+                    setTextColor(Color.rgb(80,80,80))
+                })
+                row.addView(Button(this).apply {
+                    text = "حفظ حد $amount ريال"
+                    setTextColor(Color.WHITE)
+                    setBackgroundColor(Color.rgb(35,95,150))
+                    setOnClickListener {
+                        val value = input.text.toString().trim().toIntOrNull()
+                        if (value == null || value < 0 || value > 9999) {
+                            Toast.makeText(this@MainActivity, "أدخل رقمًا من 0 إلى 9999", Toast.LENGTH_LONG).show()
+                        } else {
+                            StockNotification.setThreshold(this@MainActivity, amount, value)
+                            Toast.makeText(this@MainActivity, "تم حفظ حد التنبيه لفئة $amount ريال", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }, LinearLayout.LayoutParams(-1,-2).apply { setMargins(0,6,0,8) })
+                list.addView(row, LinearLayout.LayoutParams(-1,-2).apply { setMargins(0,0,0,10) })
+            }
+            if (CardStore.categories(this).isEmpty()) {
+                list.addView(TextView(this).apply {
+                    text = "لا توجد فئات. أضف فئة من قسم الفئات."
+                    textSize = 15f
+                    setTextColor(Color.rgb(70,70,70))
+                    setPadding(0,12,0,12)
+                })
+            }
+            content.addView(list)
         }
+
+        addButton("تحديث قائمة الفئات") { renderAlertCategories() }
+        addButton("إضافة فئة جديدة") { showCategories() }
+        renderAlertCategories()
     }
 
     private fun showSales(){
