@@ -99,11 +99,14 @@ object CardStore {
         if (!sourceFile.exists()) return 0
 
         val sourceCards = sourceFile.readLines().map { it.trim() }.filter { it.isNotEmpty() }.toMutableList()
+        val destinationExisting = if (destinationFile.exists()) {
+            destinationFile.readLines().map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        } else emptySet()
         val movedCards = mutableListOf<String>()
 
         requested.forEach { card ->
             val index = sourceCards.indexOf(card)
-            if (index >= 0) {
+            if (index >= 0 && !destinationExisting.contains(card) && !movedCards.contains(card)) {
                 sourceCards.removeAt(index)
                 movedCards.add(card)
             }
@@ -149,9 +152,12 @@ object CardStore {
     }
 
     fun returnCard(context: Context, amount: Int, card: String) = lock.withLock {
+        val cleanCard = card.trim()
+        if (cleanCard.isBlank()) return
         val f = file(context, amount)
-        val old = if (f.exists()) f.readText() else ""
-        f.writeText(card.trim() + "\n" + old)
+        val existing = if (f.exists()) f.readLines().map { it.trim() }.filter { it.isNotEmpty() } else emptyList()
+        if (existing.contains(cleanCard)) return
+        f.writeText(cleanCard + "\n" + if (existing.isEmpty()) "" else existing.joinToString("\n") + "\n")
     }
 
     fun recordSale(context: Context, amount: Int, phone: String, card: String) = lock.withLock {
