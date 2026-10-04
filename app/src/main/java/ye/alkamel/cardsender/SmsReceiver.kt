@@ -100,7 +100,7 @@ class SmsReceiver : BroadcastReceiver() {
             return
         }
 
-        if (sendSms(context, destination, card)) {
+        if (sendSms(context, destination, card, amount)) {
             CardStore.recordSale(context, amount, destination, card)
             StockNotification.notifyIfLow(context, amount, CardStore.count(context, amount))
         } else {
@@ -135,11 +135,27 @@ class SmsReceiver : BroadcastReceiver() {
         return phone
     }
 
-    private fun sendSms(context: Context, phone: String, card: String): Boolean {
+    private fun sendSms(context: Context, phone: String, card: String, amount: Int): Boolean {
         return try {
+            val prefs = context.getSharedPreferences("message_settings", Context.MODE_PRIVATE)
+            val savedTemplate = prefs.getString(
+                "template",
+                "شبكة الكامل - كرت {السعر} ريال - رقم الكرت👇\\n"
+            ).orEmpty()
+
+            // The user can customize up to 44 characters. The final SMS is capped
+            // at 54 characters, so long card numbers automatically reduce the
+            // available template portion without cutting the card number.
+            val template = savedTemplate
+                .replace("{السعر}", amount.toString())
+                .take(44)
+            val availableForTemplate = (54 - card.length).coerceAtLeast(0)
+            val safeTemplate = template.take(availableForTemplate)
+            val message = safeTemplate + card
+
             val smsManager = SmsManager.getDefault()
-            val parts = smsManager.divideMessage(card)
-            if (parts.size == 1) smsManager.sendTextMessage(phone, null, card, null, null)
+            val parts = smsManager.divideMessage(message)
+            if (parts.size == 1) smsManager.sendTextMessage(phone, null, message, null, null)
             else smsManager.sendMultipartTextMessage(phone, null, ArrayList(parts), null, null)
             true
         } catch (e: Exception) {
