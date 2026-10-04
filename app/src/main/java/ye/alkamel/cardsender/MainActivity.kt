@@ -872,6 +872,7 @@ class MainActivity : Activity() {
         }
 
         addButton("🔎 بحث عن الكرت", true) { searchCard() }
+        addButton("📊 تقارير المبيعات بالتاريخ", true) { showSalesReport() }
         searchInput.setOnEditorActionListener { _, _, _ ->
             searchCard()
             true
@@ -951,6 +952,220 @@ class MainActivity : Activity() {
                 textSize = 14f
             })
             content.addView(box,LinearLayout.LayoutParams(-1,-2).apply{setMargins(0,0,0,8.dp())})
+        }
+    }
+
+    private fun showSalesReport() {
+        currentScreen = "sales_report"
+        content.removeAllViews()
+        addBackButton()
+        addTitle("تقارير المبيعات بالتاريخ")
+        addText("اختر تاريخ البداية والنهاية لعرض تقرير مفصل عن المبيعات خلال الفترة المحددة.")
+
+        val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+        dateFormat.isLenient = false
+        val fromCalendar = java.util.Calendar.getInstance()
+        val toCalendar = java.util.Calendar.getInstance()
+
+        fun formatDate(calendar: java.util.Calendar): String = dateFormat.format(calendar.time)
+
+        val fromButton = TextView(this).apply {
+            text = "من تاريخ: " + formatDate(fromCalendar)
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setTextColor(Color.rgb(27, 91, 141))
+            background = roundedBackground(Color.WHITE, Color.rgb(213, 224, 234), 1.dp())
+            setPadding(12.dp(), 14.dp(), 12.dp(), 14.dp())
+        }
+        content.addView(fromButton, LinearLayout.LayoutParams(-1, 52.dp()).apply {
+            setMargins(0, 0, 0, 8.dp())
+        })
+
+        val toButton = TextView(this).apply {
+            text = "إلى تاريخ: " + formatDate(toCalendar)
+            textSize = 16f
+            typeface = Typeface.DEFAULT_BOLD
+            gravity = Gravity.CENTER
+            setTextColor(Color.rgb(27, 91, 141))
+            background = roundedBackground(Color.WHITE, Color.rgb(213, 224, 234), 1.dp())
+            setPadding(12.dp(), 14.dp(), 12.dp(), 14.dp())
+        }
+        content.addView(toButton, LinearLayout.LayoutParams(-1, 52.dp()).apply {
+            setMargins(0, 0, 0, 12.dp())
+        })
+
+        fun chooseDate(calendar: java.util.Calendar, target: TextView, prefix: String) {
+            android.app.DatePickerDialog(
+                this,
+                { _, year, month, dayOfMonth ->
+                    calendar.set(year, month, dayOfMonth, 0, 0, 0)
+                    calendar.set(java.util.Calendar.MILLISECOND, 0)
+                    target.text = prefix + ": " + formatDate(calendar)
+                },
+                calendar.get(java.util.Calendar.YEAR),
+                calendar.get(java.util.Calendar.MONTH),
+                calendar.get(java.util.Calendar.DAY_OF_MONTH)
+            ).show()
+        }
+
+        fromButton.setOnClickListener { chooseDate(fromCalendar, fromButton, "من تاريخ") }
+        toButton.setOnClickListener { chooseDate(toCalendar, toButton, "إلى تاريخ") }
+
+        addButton("عرض التقرير", true) {
+            val fromDate = formatDate(fromCalendar)
+            val toDate = formatDate(toCalendar)
+
+            if (fromDate > toDate) {
+                Toast.makeText(this, "تاريخ البداية يجب أن يكون قبل تاريخ النهاية", Toast.LENGTH_LONG).show()
+                return@addButton
+            }
+
+            val periodSales = CardStore.sales(this).filter { sale ->
+                sale.time.length >= 10 && sale.time.substring(0, 10) in fromDate..toDate
+            }
+
+            content.findViewWithTag<View>("sales_report_result")?.let { content.removeView(it) }
+
+            val result = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                tag = "sales_report_result"
+            }
+
+            result.addView(TextView(this).apply {
+                text = "نتيجة التقرير: " + fromDate + " إلى " + toDate
+                textSize = 18f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.rgb(24, 78, 117))
+                gravity = Gravity.RIGHT
+                setPadding(0, 8.dp(), 0, 10.dp())
+            })
+
+            val totalCount = periodSales.size
+            val totalAmount = periodSales.sumOf { it.amount }
+
+            val totalBox = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                setPadding(16.dp(), 16.dp(), 16.dp(), 16.dp())
+                background = gradientBackground(Color.rgb(18, 82, 133), Color.rgb(31, 125, 188), 12.dp())
+            }
+            totalBox.addView(TextView(this).apply {
+                text = "إجمالي المبيعات"
+                textSize = 18f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.WHITE)
+                gravity = Gravity.CENTER
+            })
+            totalBox.addView(TextView(this).apply {
+                text = totalCount.toString() + " كرت  •  " + totalAmount + " ريال"
+                textSize = 22f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.WHITE)
+                gravity = Gravity.CENTER
+                setPadding(0, 6.dp(), 0, 0)
+            })
+            result.addView(totalBox, LinearLayout.LayoutParams(-1, -2).apply {
+                setMargins(0, 0, 0, 12.dp())
+            })
+
+            result.addView(TextView(this).apply {
+                text = "تفصيل المبيعات حسب الباقة"
+                textSize = 18f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.rgb(24, 78, 117))
+                gravity = Gravity.RIGHT
+                setPadding(0, 8.dp(), 0, 8.dp())
+            })
+
+            val byAmount = periodSales.groupBy { it.amount }.toSortedMap()
+            if (byAmount.isEmpty()) {
+                result.addView(TextView(this).apply {
+                    text = "لا توجد مبيعات في الفترة المحددة."
+                    textSize = 15f
+                    setTextColor(Color.rgb(90, 100, 110))
+                    gravity = Gravity.RIGHT
+                    setPadding(0, 4.dp(), 0, 12.dp())
+                })
+            } else {
+                byAmount.forEach { (amount, items) ->
+                    val row = LinearLayout(this).apply {
+                        orientation = LinearLayout.VERTICAL
+                        setPadding(14.dp(), 12.dp(), 14.dp(), 12.dp())
+                        background = roundedBackground(Color.WHITE, Color.rgb(222, 229, 236), 1.dp())
+                    }
+                    row.addView(TextView(this).apply {
+                        text = "باقة " + amount + " ريال"
+                        textSize = 17f
+                        typeface = Typeface.DEFAULT_BOLD
+                        setTextColor(Color.rgb(25, 85, 130))
+                    })
+                    row.addView(TextView(this).apply {
+                        text = "عدد المبيعات: " + items.size + " كرت"
+                        textSize = 14f
+                        setTextColor(Color.rgb(75, 85, 95))
+                        setPadding(0, 4.dp(), 0, 0)
+                    })
+                    row.addView(TextView(this).apply {
+                        text = "الإجمالي: " + (amount * items.size) + " ريال"
+                        textSize = 15f
+                        typeface = Typeface.DEFAULT_BOLD
+                        setTextColor(Color.rgb(38, 120, 85))
+                        setPadding(0, 3.dp(), 0, 0)
+                    })
+                    result.addView(row, LinearLayout.LayoutParams(-1, -2).apply {
+                        setMargins(0, 0, 0, 7.dp())
+                    })
+                }
+            }
+
+            result.addView(TextView(this).apply {
+                text = "التفصيل اليومي"
+                textSize = 18f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.rgb(24, 78, 117))
+                gravity = Gravity.RIGHT
+                setPadding(0, 12.dp(), 0, 8.dp())
+            })
+
+            val byDay = periodSales.groupBy { it.time.substring(0, 10) }.toSortedMap()
+            byDay.forEach { (day, items) ->
+                result.addView(TextView(this).apply {
+                    text = day + "  •  " + items.size + " كرت  •  " + items.sumOf { it.amount } + " ريال"
+                    textSize = 15f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setTextColor(Color.rgb(45, 55, 65))
+                    gravity = Gravity.RIGHT
+                    setPadding(14.dp(), 11.dp(), 14.dp(), 11.dp())
+                    background = roundedBackground(Color.WHITE, Color.rgb(222, 229, 236), 1.dp())
+                }, LinearLayout.LayoutParams(-1, -2).apply {
+                    setMargins(0, 0, 0, 7.dp())
+                })
+            }
+
+            result.addView(TextView(this).apply {
+                text = "تفاصيل العمليات (" + periodSales.size + ")"
+                textSize = 18f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.rgb(24, 78, 117))
+                gravity = Gravity.RIGHT
+                setPadding(0, 12.dp(), 0, 8.dp())
+            })
+
+            periodSales.take(500).forEach { sale ->
+                result.addView(TextView(this).apply {
+                    text = sale.time + "  •  " + sale.amount + " ريال\nرقم المشتري: " + sale.phone + "\nالكرت: " + sale.card
+                    textSize = 14f
+                    setTextColor(Color.rgb(55, 65, 75))
+                    gravity = Gravity.RIGHT
+                    setPadding(14.dp(), 10.dp(), 14.dp(), 10.dp())
+                    background = roundedBackground(Color.WHITE, Color.rgb(222, 229, 236), 1.dp())
+                }, LinearLayout.LayoutParams(-1, -2).apply {
+                    setMargins(0, 0, 0, 7.dp())
+                })
+            }
+
+            content.addView(result)
         }
     }
 
