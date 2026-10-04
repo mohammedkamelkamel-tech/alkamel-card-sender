@@ -375,6 +375,18 @@ class MainActivity : Activity() {
         addButton("معرفة الكروت التي تم بيعها") { showSales() }
         addButton("عرض سجل الإرسال والعمليات") { showOperations() }
         addButton("إعدادات تنبيه نقص المخزون") { showStockAlertSettings() }
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+            if (BackgroundHelper.isIgnoringBatteryOptimizations(this)) {
+                addText("🟢 العمل بالخلفية: استثناء البطارية مفعّل.")
+            } else {
+                addButton("⚡ تحسين العمل بالخلفية", true) {
+                    BackgroundHelper.openBatteryOptimizationSettings(this)
+                }
+                addText("لضمان استقبال الرسائل عند إغلاق الشاشة، فعّل استثناء البطارية للتطبيق.")
+            }
+        }
+
         addButton("إنشاء نسخة احتياطية الآن") {
             val name = BackupManager.createBackup(this)
             Toast.makeText(
