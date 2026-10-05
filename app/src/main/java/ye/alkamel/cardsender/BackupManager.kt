@@ -132,20 +132,7 @@ object BackupManager {
                         }
 
                         when {
-                            name.startsWith("cards/") && name.endsWith(".txt") -> {
-                                val fileName = name.removePrefix("cards/")
-                                val amount = fileName.removeSuffix(".txt").toIntOrNull()
-                                    ?: throw IllegalArgumentException("فئة كرت غير صالحة")
-                                if (amount <= 0) throw IllegalArgumentException("فئة كرت غير صالحة")
-                                val out = File(tempCards, "$amount.txt")
-                                BufferedOutputStream(out.outputStream()).use { zip.copyTo(it) }
-                                hasCardFile = true
-                            }
-                            name == "sales.csv" -> {
-                                val out = File(tempRoot, "sales.csv")
-                                BufferedOutputStream(out.outputStream()).use { zip.copyTo(it) }
-                                hasSales = true
-                            }
+                            name.startsWith("cards/") && (name.endsWith(".txt") || name.endsWith(".csv")) -> {\n                                val relative = name.removePrefix("cards/")\n                                val parts = relative.split("/")\n                                val sim = if (parts.size >= 2 && (parts[0] == "sim1" || parts[0] == "sim2")) parts[0] else "sim1"\n                                val fileName = if (parts.size >= 2) parts.last() else parts[0]\n                                val targetDir = File(tempCards, sim).apply { mkdirs() }\n                                if (fileName.endsWith(".txt")) {\n                                    val amount = fileName.removeSuffix(".txt").toIntOrNull()\n                                        ?: throw IllegalArgumentException("فئة كرت غير صالحة")\n                                    if (amount <= 0) throw IllegalArgumentException("فئة كرت غير صالحة")\n                                    val out = File(targetDir, "$amount.txt")\n                                    BufferedOutputStream(out.outputStream()).use { zip.copyTo(it) }\n                                    hasCardFile = true\n                                } else {\n                                    val out = File(targetDir, "sales.csv")\n                                    BufferedOutputStream(out.outputStream()).use { zip.copyTo(it) }\n                                    hasSales = true\n                                }\n                            }\n                            name == "sales.csv" -> {\n                                val out = File(tempCards, "sim1/sales.csv")\n                                out.parentFile?.mkdirs()\n                                BufferedOutputStream(out.outputStream()).use { zip.copyTo(it) }\n                                hasSales = true\n                            }
                             name == "operations.log" -> {
                                 val out = File(tempRoot, "operations.log")
                                 BufferedOutputStream(out.outputStream()).use { zip.copyTo(it) }
@@ -202,24 +189,7 @@ object BackupManager {
                 throw IllegalArgumentException("ملف النسخة الاحتياطية لا يحتوي على بيانات صالحة")
             }
 
-            val cardFiles = tempCards.listFiles()?.filter { it.isFile && it.extension == "txt" } ?: emptyList()
-            val categories = cardFiles.mapNotNull { it.nameWithoutExtension.toIntOrNull() }
-                .filter { it > 0 }.distinct().sorted()
-            if (categories.isEmpty()) {
-                throw IllegalArgumentException("لا توجد فئات كروت في النسخة الاحتياطية")
-            }
-
-            val liveCards = File(context.filesDir, "cards").apply { mkdirs() }
-            liveCards.listFiles()?.filter { it.isFile && it.extension == "txt" }?.forEach { it.delete() }
-            cardFiles.forEach { it.copyTo(File(liveCards, it.name), overwrite = true) }
-
-            if (hasSales) {
-                File(tempRoot, "sales.csv").copyTo(File(context.filesDir, "sales.csv"), overwrite = true)
-            } else {
-                File(context.filesDir, "sales.csv").writeText("time,amount,phone,card\n")
-            }
-
-            if (hasOperations) {
+            val cardFiles = tempCards.walkTopDown().filter { it.isFile && it.extension == "txt" }.toList()\n            val categories = cardFiles.mapNotNull { it.nameWithoutExtension.toIntOrNull() }\n                .filter { it > 0 }.distinct().sorted()\n            if (categories.isEmpty()) {\n                throw IllegalArgumentException("لا توجد فئات كروت في النسخة الاحتياطية")\n            }\n\n            val liveCards = File(context.filesDir, "cards").apply { mkdirs() }\n            liveCards.listFiles()?.forEach { it.deleteRecursively() }\n            tempCards.listFiles()?.filter { it.isDirectory }?.forEach { source ->\n                source.copyRecursively(File(liveCards, source.name), overwrite = true)\n            }\n\n            if (hasSales) {\n                for (sim in listOf("sim1", "sim2")) {\n                    val source = File(tempCards, "$sim/sales.csv")\n                    if (source.exists()) source.copyTo(File(liveCards, "$sim/sales.csv"), overwrite = true)\n                }\n            }\n            if (hasOperations) {
                 File(tempRoot, "operations.log").copyTo(OperationLog.backupFile(context), overwrite = true)
             }
 
@@ -260,19 +230,7 @@ object BackupManager {
     }
 
     private fun writeZip(context: Context, zip: ZipOutputStream) {
-        CardStore.backupFiles(context).forEach { file ->
-            if (file.exists()) {
-                val relative = when (file.name) {
-                    "sales.csv" -> "sales.csv"
-                    "operations.log" -> "operations.log"
-                    else -> "cards/${file.name}"
-                }
-                zip.putNextEntry(ZipEntry(relative))
-                file.inputStream().use { it.copyTo(zip) }
-                zip.closeEntry()
-            }
-        }
-        zip.putNextEntry(ZipEntry("settings.txt"))
+        CardStore.backupFiles(context).forEach { file ->\n            if (file.exists()) {\n                val parent = file.parentFile?.name\n                val relative = when {\n                    file.name == "operations.log" -> "operations.log"\n                    parent == "sim1" || parent == "sim2" -> "cards/$parent/${file.name}"\n                    else -> "cards/${file.name}"\n                }\n                zip.putNextEntry(ZipEntry(relative))\n                file.inputStream().use { it.copyTo(zip) }\n                zip.closeEntry()\n            }\n        }\n        zip.putNextEntry(ZipEntry("settings.txt"))
         val settings = buildString {
             append("app=الكامل أونلاين\n")
             append("version=1.9.0\n")
