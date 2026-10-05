@@ -288,13 +288,10 @@ object BackupManager {
         }
         zip.putNextEntry(ZipEntry("settings.txt"))
         val settings = buildString {
-            append("app=الكامل أونلاين
-")
-            append("version=1.9.0
-")
+            append("app=الكامل أونلاين\n")
+            append("version=1.9.0\n")
             CardStore.categories(context).forEach { amount ->
-                append("stock_alert_threshold_$amount=${StockNotification.getThreshold(context, amount)}
-")
+                append("stock_alert_threshold_$amount=${StockNotification.getThreshold(context, amount)}\n")
             }
         }
         zip.write(settings.toByteArray(Charsets.UTF_8))
@@ -306,18 +303,15 @@ object BackupManager {
         val appSettings = buildString {
             append("template_b64=")
             append(Base64.encodeToString(template.toByteArray(Charsets.UTF_8), Base64.NO_WRAP))
-            append("
-")
+            append("\n")
             ContactMap.all(context).forEach { (alternate, phone) ->
                 append("map_b64=")
                 append(Base64.encodeToString(alternate.toByteArray(Charsets.UTF_8), Base64.NO_WRAP))
                 append("|")
                 append(Base64.encodeToString(phone.toByteArray(Charsets.UTF_8), Base64.NO_WRAP))
-                append("
-")
+                append("\n")
             }
         }
         zip.write(appSettings.toByteArray(Charsets.UTF_8))
-        zip.closeEntry()
-    }
+        zip.closeEntry()    }
 }
