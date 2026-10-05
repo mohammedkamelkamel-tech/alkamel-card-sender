@@ -34,6 +34,15 @@ class SmsReceiver : BroadcastReceiver() {
     private fun process(context: Context, intent: Intent) {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) return
         val bundle: Bundle = intent.extras ?: return
+
+        val sim = SimRouting.simFromIntent(intent) ?: run {
+            Log.w(TAG, "Incoming SMS SIM could not be determined; ignored")
+            return
+        }
+        val subscriptionId = SimRouting.subscriptionIdFromIntent(intent) ?: run {
+            Log.w(TAG, "Incoming SMS subscriptionId could not be determined; ignored")
+            return
+        }
         val pdus = bundle.get("pdus") as? Array<*> ?: return
         val format = bundle.getString("format")
         val messages = pdus.mapNotNull {
@@ -55,7 +64,7 @@ class SmsReceiver : BroadcastReceiver() {
         // منع معالجة نفس رسالة SMS مرتين، وهو أهم إجراء لمنع إرسال كرتين بسبب
         // تكرار بث الرسالة من النظام أو إعادة تسليم الـ Intent.
         val smsTimestamp = messages.firstOrNull()?.timestampMillis ?: 0L
-        val fingerprint = fingerprint(originating, displayOriginating, smsTimestamp, body)
+        val fingerprint = fingerprint(originating, displayOriginating, smsTimestamp, body, sim)
 
         val lower = body.lowercase()
         val isJawali = lower.contains("استلمت") && lower.contains("yer")
@@ -102,20 +111,20 @@ class SmsReceiver : BroadcastReceiver() {
             return
         }
 
-        val card = CardStore.takeFirstCard(context, amount)
+        val card = CardStore.takeFirstCard(context, amount, sim)
         if (card == null) {
             Log.d(TAG, "No card available for amount=$amount")
             return
         }
 
         val operationId = OperationLog.start(context, amount, destination, card)
-        val sendResult = sendSms(context, destination, card, amount)
+        val sendResult = sendSms(context, destination, card, amount, subscriptionId)
 
         if (sendResult.success) {
-            CardStore.recordSale(context, amount, destination, card)
+            CardStore.recordSale(context, amount, destination, card, sim)
             OperationLog.finish(context, operationId, true)
-            StockNotification.notifyIfLow(context, amount, CardStore.count(context, amount))
-            Log.i(TAG, "Card sent successfully: amount=$amount phone=$destination")
+            StockNotification.notifyIfLow(context, amount, CardStore.count(context, amount, sim))
+            Log.i(TAG, "Card sent successfully: sim=${SimRouting.label(sim)} amount=$amount phone=$destination")
         } else {
             CardStore.returnCard(context, amount, card)
             OperationLog.finish(context, operationId, false, sendResult.error)
@@ -123,8 +132,8 @@ class SmsReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun fingerprint(originating: String, displayOriginating: String, timestamp: Long, body: String): String {
-        val raw = "$originating|$displayOriginating|$timestamp|$body"
+    private fun fingerprint(originating: String, displayOriginating: String, timestamp: Long, body: String, sim: Int): String {
+        val raw = "$originating|$displayOriginating|$timestamp|$body|sim=$sim"
         val digest = MessageDigest.getInstance("SHA-256").digest(raw.toByteArray(Charsets.UTF_8))
         return digest.joinToString("") { "%02x".format(it) }
     }
@@ -175,7 +184,7 @@ class SmsReceiver : BroadcastReceiver() {
 
     private data class SendResult(val success: Boolean, val error: String = "")
 
-    private fun sendSms(context: Context, phone: String, card: String, amount: Int): SendResult {
+    private fun sendSms(context: Context, phone: String, card: String, amount: Int, subscriptionId: Int): SendResult {
         return try {
             val prefs = context.getSharedPreferences("message_settings", Context.MODE_PRIVATE)
             val savedTemplate = prefs.getString(
@@ -195,7 +204,7 @@ class SmsReceiver : BroadcastReceiver() {
             val safeTemplate = template.take(availableForTemplate)
             val message = safeTemplate + card
 
-            val smsManager = SmsManager.getDefault()
+            val smsManager = SmsManager.getSmsManagerForSubscriptionId(subscriptionId)
             val parts = smsManager.divideMessage(message)
             if (parts.size == 1) smsManager.sendTextMessage(phone, null, message, null, null)
             else smsManager.sendMultipartTextMessage(phone, null, ArrayList(parts), null, null)
