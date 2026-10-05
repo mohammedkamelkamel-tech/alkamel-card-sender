@@ -369,6 +369,8 @@ class MainActivity : Activity() {
         addButton("➕ إضافة فئة كروت جديدة", true) { showCategories() }
         addButton("🔗 ربط رقم بديل برقم جوال", true) { showAlternateNumbers() }
         addButton("📦 عرض أرقام الكروت المتبقية لكل فئة", true) { showStock() }
+        addButton("📱 مخزون SIM1 / SIM2", true) { showSimInventory() }
+        addButton("📊 مبيعات SIM1 / SIM2") { showSimSales() }
 
         addSectionTitle("اختصارات")
         addButton("➕ إضافة كروت جديدة") { showAddCards() }
@@ -523,6 +525,129 @@ class MainActivity : Activity() {
         addText("ملاحظة: الكروت التي تم بيعها لا تظهر في المخزون، والتصحيح يخص الكروت المتبقية فقط.")
     }
 
+    private fun showSimInventory() {
+        currentScreen = "sim_inventory"
+        content.removeAllViews()
+        addBackButton()
+        addTitle("📱 مخزون SIM1 / SIM2")
+        addText("كل شريحة مستقلة عن الأخرى. عند وصول تحويل على SIM1 يستخدم التطبيق مخزون SIM1 فقط، وعند وصوله على SIM2 يستخدم مخزون SIM2 فقط.")
+
+        val simSpinner = Spinner(this).apply {
+            setBackgroundColor(Color.WHITE)
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, listOf("SIM1", "SIM2"))
+        }
+        content.addView(simSpinner)
+
+        val categories = CardStore.categories(this)
+        if (categories.isEmpty()) {
+            addText("لا توجد فئات كروت.")
+            return
+        }
+
+        val amountSpinner = Spinner(this).apply { setBackgroundColor(Color.WHITE) }
+        content.addView(amountSpinner)
+
+        val input = EditText(this).apply {
+            hint = "الصق أرقام الكروت، كل رقم في سطر"
+            minLines = 8
+            gravity = Gravity.TOP or Gravity.RIGHT
+            textSize = 17f
+            setTextColor(Color.rgb(25,25,25))
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+        }
+        content.addView(input)
+
+        val list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        content.addView(list)
+
+        fun refresh() {
+            val sim = simSpinner.selectedItemPosition + 1
+            amountSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item,
+                categories.map { amount -> "$amount ريال — ${CardStore.count(this, amount, sim)} كرت" })
+            val amount = categories[amountSpinner.selectedItemPosition.coerceAtMost(categories.lastIndex)]
+            val cards = CardStore.cards(this, amount, sim)
+            list.removeAllViews()
+            list.addView(TextView(this).apply {
+                text = "${SimRouting.label(sim)} • $amount ريال • ${cards.size} كرت متبقي"
+                textSize = 17f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.rgb(30,85,125))
+                gravity = Gravity.RIGHT
+                setPadding(0, 12.dp(), 0, 8.dp())
+            })
+            cards.take(300).forEachIndexed { index, card ->
+                list.addView(TextView(this).apply {
+                    text = "${index + 1}. $card"
+                    textSize = 15f
+                    gravity = Gravity.RIGHT
+                    setPadding(12.dp(), 8.dp(), 12.dp(), 8.dp())
+                    setTextColor(Color.rgb(40,40,40))
+                    setBackgroundColor(Color.WHITE)
+                })
+            }
+        }
+
+        simSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) { refresh() }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        addButton("💾 إضافة الكروت إلى الشريحة المحددة", true) {
+            val sim = simSpinner.selectedItemPosition + 1
+            val amount = categories[amountSpinner.selectedItemPosition]
+            val added = CardStore.addCards(this, amount, input.text.toString(), sim)
+            Toast.makeText(this, if (added > 0) "تم حفظ $added كرت في ${SimRouting.label(sim)} لفئة $amount" else "لم تتم إضافة أي كرت", Toast.LENGTH_LONG).show()
+            if (added > 0) input.setText("")
+            refresh()
+        }
+
+        addButton("🔄 تحديث") { refresh() }
+        refresh()
+    }
+
+    private fun showSimSales() {
+        currentScreen = "sim_sales"
+        content.removeAllViews()
+        addBackButton()
+        addTitle("📊 مبيعات SIM1 / SIM2")
+        val simSpinner = Spinner(this).apply {
+            setBackgroundColor(Color.WHITE)
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, listOf("SIM1", "SIM2"))
+        }
+        content.addView(simSpinner)
+        val result = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        content.addView(result)
+        fun refresh() {
+            val sim = simSpinner.selectedItemPosition + 1
+            val sales = CardStore.sales(this, sim)
+            val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+            val todaySales = sales.filter { it.time.startsWith(today) }
+            result.removeAllViews()
+            result.addView(TextView(this).apply {
+                text = "${SimRouting.label(sim)}\nإجمالي المبيعات: ${sales.size} كرت\nمبيعات اليوم: ${todaySales.size} كرت\nقيمة مبيعات اليوم: ${todaySales.sumOf { it.amount }} ريال"
+                textSize = 17f
+                typeface = Typeface.DEFAULT_BOLD
+                gravity = Gravity.RIGHT
+                setTextColor(Color.rgb(35,75,105))
+                setPadding(0, 10.dp(), 0, 12.dp())
+            })
+            todaySales.take(300).forEach { sale ->
+                result.addView(TextView(this).apply {
+                    text = "${sale.time} • ${sale.amount} ريال\nالمشتري: ${sale.phone}\nالكرت: ${sale.card}"
+                    textSize = 14f
+                    gravity = Gravity.RIGHT
+                    setTextColor(Color.rgb(55,65,75))
+                    setPadding(12.dp(), 10.dp(), 12.dp(), 10.dp())
+                    setBackgroundColor(Color.WHITE)
+                }, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, 6.dp()) })
+            }
+        }
+        simSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) { refresh() }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+        refresh()
+    }
     private fun showStock() {
         currentScreen = "stock"
         content.removeAllViews()
