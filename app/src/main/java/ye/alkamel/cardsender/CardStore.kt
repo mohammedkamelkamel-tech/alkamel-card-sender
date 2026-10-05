@@ -12,7 +12,8 @@ data class Sale(
     val time: String,
     val amount: Int,
     val phone: String,
-    val card: String
+    val card: String,
+    val sim: Int = 1
 )
 
 object CardStore {
@@ -45,23 +46,56 @@ object CardStore {
     private fun root(context: Context): File =
         File(context.filesDir, "cards").apply { mkdirs() }
 
-    private fun file(context: Context, amount: Int): File =
+    private fun simRoot(context: Context, sim: Int): File =
+        File(root(context), if (sim == 2) "sim2" else "sim1").apply { mkdirs() }
+
+    private fun legacyFile(context: Context, amount: Int): File =
         File(root(context), "$amount.txt")
 
-    private fun salesFile(context: Context): File =
-        File(context.filesDir, "sales.csv")
+    private fun file(context: Context, amount: Int, sim: Int = 1): File {
+        migrateLegacySim1(context, amount)
+        return File(simRoot(context, sim), "$amount.txt")
+    }
 
-    fun initializeFiles(context: Context) {
-        categories(context).forEach { amount ->
-            val f = file(context, amount)
-            if (!f.exists()) f.writeText("")
-        }
-        if (!salesFile(context).exists()) {
-            salesFile(context).writeText("time,amount,phone,card\n")
+    private fun salesFile(context: Context, sim: Int = 1): File {
+        migrateLegacySales(context)
+        return File(simRoot(context, sim), "sales.csv")
+    }
+
+    private fun migrateLegacySim1(context: Context, amount: Int) {
+        val target = File(simRoot(context, 1), "$amount.txt")
+        val legacy = legacyFile(context, amount)
+        if (!target.exists() && legacy.exists()) {
+            target.writeText(legacy.readText())
+            legacy.delete()
         }
     }
 
-    fun addCards(context: Context, amount: Int, raw: String): Int = lock.withLock {
+    private fun migrateLegacySales(context: Context) {
+        val target = File(simRoot(context, 1), "sales.csv")
+        val legacy = File(context.filesDir, "sales.csv")
+        if (!target.exists() && legacy.exists()) {
+            target.writeText(legacy.readText())
+            legacy.delete()
+        }
+    }
+
+    fun initializeFiles(context: Context) {
+        categories(context).forEach { amount ->
+            for (sim in 1..2) {
+                val f = file(context, amount, sim)
+                if (!f.exists()) f.writeText("")
+            }
+        }
+        for (sim in 1..2) {
+            val sf = salesFile(context, sim)
+            if (!sf.exists()) sf.writeText("time,amount,phone,card,sim\n")
+        }
+    }
+
+    fun addCards(context: Context, amount: Int, raw: String): Int = addCards(context, amount, raw, 1)
+
+    fun addCards(context: Context, amount: Int, raw: String, sim: Int): Int = lock.withLock {
         initializeFiles(context)
         if (!categories(context).contains(amount)) return 0
         val cards = raw.lines().map { it.trim() }
@@ -71,7 +105,7 @@ object CardStore {
 
         // منع تكرار الكرت داخل المخزون أو إدخاله مرة أخرى بعد بيعه.
         val existing = categories(context)
-            .flatMap { amountValue -> cards(context, amountValue) }
+            .flatMap { amountValue -> cards(context, amountValue, sim) }
             .toMutableSet()
         existing += sales(context).map { it.card }
         val uniqueCards = cards.filterNot { existing.contains(it) }
@@ -125,22 +159,28 @@ object CardStore {
         movedCards.size
     }
 
-    fun count(context: Context, amount: Int): Int = lock.withLock {
-        val f = file(context, amount)
+    fun count(context: Context, amount: Int): Int = count(context, amount, 1)
+
+    fun count(context: Context, amount: Int, sim: Int): Int = lock.withLock {
+        val f = file(context, amount, sim)
         if (!f.exists()) return 0
         f.readLines().count { it.trim().isNotEmpty() }
     }
 
-    fun cards(context: Context, amount: Int): List<String> = lock.withLock {
-        val f = file(context, amount)
+    fun cards(context: Context, amount: Int): List<String> = cards(context, amount, 1)
+
+    fun cards(context: Context, amount: Int, sim: Int): List<String> = lock.withLock {
+        val f = file(context, amount, sim)
         if (!f.exists()) return emptyList()
         f.readLines().map { it.trim() }.filter { it.isNotEmpty() }
     }
 
     fun totalStock(context: Context): Int = categories(context).sumOf { count(context, it) }
 
-    fun takeFirstCard(context: Context, amount: Int): String? = lock.withLock {
-        val f = file(context, amount)
+    fun takeFirstCard(context: Context, amount: Int): String? = takeFirstCard(context, amount, 1)
+
+    fun takeFirstCard(context: Context, amount: Int, sim: Int): String? = lock.withLock {
+        val f = file(context, amount, sim)
         if (!f.exists()) f.createNewFile()
         val lines = f.readLines()
         val index = lines.indexOfFirst { it.trim().isNotEmpty() }
@@ -151,37 +191,51 @@ object CardStore {
         card
     }
 
-    fun returnCard(context: Context, amount: Int, card: String) = lock.withLock {
+    fun returnCard(context: Context, amount: Int, card: String) = returnCard(context, amount, card, 1)
+
+    fun returnCard(context: Context, amount: Int, card: String, sim: Int) = lock.withLock {
         val cleanCard = card.trim()
         if (cleanCard.isBlank()) return
-        val f = file(context, amount)
+        val f = file(context, amount, sim)
         val existing = if (f.exists()) f.readLines().map { it.trim() }.filter { it.isNotEmpty() } else emptyList()
         if (existing.contains(cleanCard)) return
         f.writeText(cleanCard + "\n" + if (existing.isEmpty()) "" else existing.joinToString("\n") + "\n")
     }
 
-    fun recordSale(context: Context, amount: Int, phone: String, card: String) = lock.withLock {
+    fun recordSale(context: Context, amount: Int, phone: String, card: String) = recordSale(context, amount, phone, card, 1)
+
+    fun recordSale(context: Context, amount: Int, phone: String, card: String, sim: Int) = lock.withLock {
         initializeFiles(context)
         val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
-        salesFile(context).appendText("$time,$amount,$phone,$card\n")
+        salesFile(context, sim).appendText("$time,$amount,$phone,$card,$sim\n")
     }
 
     fun sales(context: Context): List<Sale> = lock.withLock {
         val f = salesFile(context)
         if (!f.exists()) return emptyList()
         f.readLines().drop(1).mapNotNull { line ->
-            val p = line.split(",", limit = 4)
-            if (p.size == 4) Sale(p[0], p[1].toIntOrNull() ?: return@mapNotNull null, p[2], p[3]) else null
+            val p = line.split(",", limit = 5)
+            if (p.size >= 4) Sale(
+                p[0],
+                p[1].toIntOrNull() ?: return@mapNotNull null,
+                p[2],
+                p[3],
+                p.getOrNull(4)?.toIntOrNull() ?: 1
+            ) else null
         }.reversed()
     }
 
+    fun sales(context: Context, sim: Int): List<Sale> = sales(context).filter { it.sim == sim }
+
     fun salesCount(context: Context): Int = sales(context).size
+    fun salesCount(context: Context, sim: Int): Int = sales(context, sim).size
 
     fun backupFiles(context: Context): List<File> {
         initializeFiles(context)
         return buildList {
-            addAll(categories(context).map { file(context, it) })
-            add(salesFile(context))
+            for (sim in 1..2) {
+                addAll(categories(context).map { file(context, it, sim) })
+                add(salesFile(context, sim))
             OperationLog.backupFile(context).takeIf { it.exists() }?.let { add(it) }
         }
     }
