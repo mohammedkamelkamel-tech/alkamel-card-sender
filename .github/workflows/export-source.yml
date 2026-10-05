@@ -17,3 +17,5 @@ jobs:
         with:
           name: alkamel-card-sender-source
           path: alkamel-card-sender-source.zip
+
+# trigger export
