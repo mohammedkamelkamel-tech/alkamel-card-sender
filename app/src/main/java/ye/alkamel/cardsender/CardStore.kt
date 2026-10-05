@@ -236,6 +236,7 @@ object CardStore {
             for (sim in 1..2) {
                 addAll(categories(context).map { file(context, it, sim) })
                 add(salesFile(context, sim))
+            }
             OperationLog.backupFile(context).takeIf { it.exists() }?.let { add(it) }
         }
     }
