@@ -105,7 +105,7 @@ object CardStore {
 
         // منع تكرار الكرت داخل المخزون أو إدخاله مرة أخرى بعد بيعه.
         val existing = categories(context)
-            .flatMap { amountValue -> cards(context, amountValue, sim) }
+            .flatMap { amountValue -> (1..2).flatMap { simValue -> cards(context, amountValue, simValue) } }
             .toMutableSet()
         existing += sales(context).map { it.card }
         val uniqueCards = cards.filterNot { existing.contains(it) }
@@ -188,6 +188,20 @@ object CardStore {
         val card = lines[index].trim()
         val remaining = lines.filterIndexed { i, _ -> i != index }
         f.writeText(if (remaining.isEmpty()) "" else remaining.joinToString("\n") + "\n")
+
+        // Defensive cleanup: if the same card was accidentally duplicated in the other SIM,
+        // remove it there under the same lock so it cannot be sent twice.
+        val otherSim = if (sim == 2) 1 else 2
+        categories(context).forEach { amountValue ->
+            val otherFile = file(context, amountValue, otherSim)
+            if (otherFile.exists()) {
+                val otherLines = otherFile.readLines()
+                val filtered = otherLines.filter { it.trim() != card }
+                if (filtered.size != otherLines.size) {
+                    otherFile.writeText(if (filtered.isEmpty()) "" else filtered.joinToString("\n") + "\n")
+                }
+            }
+        }
         card
     }
 
