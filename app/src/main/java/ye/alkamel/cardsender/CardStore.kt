@@ -175,6 +175,31 @@ object CardStore {
         f.readLines().map { it.trim() }.filter { it.isNotEmpty() }
     }
 
+    fun deleteCard(context: Context, amount: Int, card: String, sim: Int = 1): Boolean = lock.withLock {
+        val cleanCard = card.trim()
+        if (cleanCard.isBlank()) return false
+        val f = file(context, amount, sim)
+        if (!f.exists()) return false
+        val lines = f.readLines()
+        val index = lines.indexOfFirst { it.trim() == cleanCard }
+        if (index < 0) return false
+        val remaining = lines.filterIndexed { i, _ -> i != index }
+        f.writeText(if (remaining.isEmpty()) "" else remaining.joinToString("\n") + "\n")
+        true
+    }
+
+    fun removeFirstCards(context: Context, amount: Int, quantity: Int, sim: Int = 1): Int = lock.withLock {
+        if (quantity <= 0) return 0
+        val f = file(context, amount, sim)
+        if (!f.exists()) return 0
+        val lines = f.readLines().filter { it.trim().isNotEmpty() }
+        val removed = minOf(quantity, lines.size)
+        if (removed <= 0) return 0
+        val remaining = lines.drop(removed)
+        f.writeText(if (remaining.isEmpty()) "" else remaining.joinToString("\n") + "\n")
+        removed
+    }
+
     fun totalStock(context: Context): Int = categories(context).sumOf { count(context, it) }
 
     fun takeFirstCard(context: Context, amount: Int): String? = takeFirstCard(context, amount, 1)
