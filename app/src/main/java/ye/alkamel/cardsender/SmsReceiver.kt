@@ -111,27 +111,27 @@ class SmsReceiver : BroadcastReceiver() {
             return
         }
 
-        val card = CardStore.takeFirstCard(context, amount, sim)
-        if (card == null) {
-            Log.d(TAG, "No card available for amount=$amount")
+        // لا نرسل مباشرة من مستقبل الرسائل.
+        // نضع عملية البيع في طابور دائم أولاً، ثم يتولى المعالج إرسالها بالتسلسل.
+        // هذا يمنع فقدان الحوالة أثناء وضع الصيانة ويمنع تداخل عمليتي إرسال.
+        val queued = PendingQueue.enqueue(
+            context,
+            fingerprint,
+            amount,
+            destination,
+            sim,
+            subscriptionId
+        )
+        if (!queued) {
+            Log.w(TAG, "Duplicate/pending SMS ignored: $fingerprint")
             return
         }
 
-        val operationId = OperationLog.start(context, amount, destination, card)
-        val sendResult = sendSms(context, destination, card, amount, subscriptionId)
-
-        if (sendResult.success) {
-            CardStore.recordSale(context, amount, destination, card, sim)
-            markProcessed(context, fingerprint)
-            OperationLog.finish(context, operationId, true)
-            StockNotification.notifyIfLow(context, amount, CardStore.count(context, amount, sim))
-            Log.i(TAG, "Card sent successfully: sim=${SimRouting.label(sim)} amount=$amount phone=$destination")
-        } else {
-            CardStore.returnCard(context, amount, card, sim)
-            OperationLog.finish(context, operationId, false, sendResult.error)
-            Log.e(TAG, "Card send failed: amount=$amount phone=$destination reason=${sendResult.error}")
-        }
-    }
+        Log.i(
+            TAG,
+            "Sale queued: sim=${SimRouting.label(sim)} amount=$amount phone=$destination"
+        )
+        CardQueueProcessor.process(context)
 
     private fun fingerprint(originating: String, displayOriginating: String, timestamp: Long, body: String, sim: Int): String {
         val raw = "$originating|$displayOriginating|$timestamp|$body|sim=$sim"
