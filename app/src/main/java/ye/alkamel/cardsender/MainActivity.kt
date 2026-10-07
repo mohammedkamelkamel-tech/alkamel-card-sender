@@ -431,7 +431,7 @@ class MainActivity : Activity() {
         val spinner=Spinner(this);spinner.setBackgroundColor(Color.WHITE);spinner.adapter=ArrayAdapter(this,android.R.layout.simple_spinner_dropdown_item,categories.map{"$it ريال"});content.addView(spinner)
         val input=EditText(this).apply{hint="مثال:\n18466933\n10356433\n...";setTextColor(Color.rgb(25,25,25));setHintTextColor(Color.rgb(110,110,110));textSize=17f;minLines=10;gravity=Gravity.TOP or Gravity.RIGHT;inputType=android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE}
         content.addView(input,LinearLayout.LayoutParams(-1,0,1f))
-        addButton("💾 حفظ الكروت"){val amount=categories[spinner.selectedItemPosition];val added=CardStore.addCards(this,amount,input.text.toString());Toast.makeText(this,if(added>0)"تم حفظ $added كرت من فئة $amount ريال" else "لم يتم العثور على أرقام كروت صحيحة",Toast.LENGTH_LONG).show();if(added>0)input.setText("")}
+        addButton("💾 حفظ الكروت"){val amount=categories[spinner.selectedItemPosition];val added=CardStore.addCards(this,amount,input.text.toString());Toast.makeText(this,if(added>0)"تم حفظ $added كرت من فئة $amount ريال" else "لم يتم العثور على أرقام كروت صحيحة",Toast.LENGTH_LONG).show();if(added>0){input.setText("");CardQueueProcessor.process(this)}}
         addButton("🔄 تصحيح فئة الكروت / نقل الكروت") { showMoveCards() }
         addText("المخزون الحالي: "+categories.joinToString(" | "){"$it=${CardStore.count(this,it)}"})
     }
@@ -595,7 +595,7 @@ class MainActivity : Activity() {
         addButton("💾 إضافة الكروت إلى الشريحة المحددة", true) {
             val sim = simSpinner.selectedItemPosition + 1
             val amount = categories[amountSpinner.selectedItemPosition]
-            val added = CardStore.addCards(this, amount, input.text.toString(), sim)
+            val added = CardStore.addCards(this, amount, input.text.toString(), sim).also { if (it > 0) CardQueueProcessor.process(this) }
             Toast.makeText(this, if (added > 0) "تم حفظ $added كرت في ${SimRouting.label(sim)} لفئة $amount" else "لم تتم إضافة أي كرت", Toast.LENGTH_LONG).show()
             if (added > 0) input.setText("")
             refresh()
