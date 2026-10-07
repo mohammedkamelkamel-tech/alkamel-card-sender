@@ -26,7 +26,7 @@ object PendingQueue {
         val clean=error.replace("|"," ").replace("\n"," ").replace("\r"," ")
         write(context,read(context).map{if(it.id==id)it.copy(error=clean)else it})
     }
-    fun pending(context:Context):List<PendingSale>=lock.withLock{read(context)}
+    fun pending(context:Context): List<PendingSale> =lock.withLock{read(context)}
     private fun append(context:Context,row:PendingSale){val f=file(context);f.parentFile?.mkdirs();f.appendText(serialize(row)+"\n")}
     private fun read(context:Context):List<PendingSale>{
         val f=file(context);if(!f.exists())return emptyList()
