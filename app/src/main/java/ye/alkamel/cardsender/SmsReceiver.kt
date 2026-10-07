@@ -132,6 +132,7 @@ class SmsReceiver : BroadcastReceiver() {
             "Sale queued: sim=${SimRouting.label(sim)} amount=$amount phone=$destination"
         )
         CardQueueProcessor.process(context)
+    }
 
     private fun fingerprint(originating: String, displayOriginating: String, timestamp: Long, body: String, sim: Int): String {
         val raw = "$originating|$displayOriginating|$timestamp|$body|sim=$sim"
