@@ -280,6 +280,7 @@ class MainActivity : Activity() {
         nav.addView(navButton("💰 المبيعات") { showSales() })
         nav.addView(navButton("📋 سجل العمليات") { showOperations() })
         nav.addView(navButton("✉️ رسالة الكرت") { showMessageSettings() })
+        nav.addView(navButton("⚙️ الخدمات") { showServices() })
         nav.addView(navButton("💾 النسخ") { showBackup() })
         navScroll.addView(nav, LinearLayout.LayoutParams(-2, -1))
 
@@ -319,6 +320,62 @@ class MainActivity : Activity() {
         setOnClickListener { action() }
         layoutParams = LinearLayout.LayoutParams(-2, 46.dp()).apply {
             setMargins(4.dp(), 0, 4.dp(), 0)
+        }
+    }
+
+    private fun showServices() {
+        currentScreen = "services"
+        content.removeAllViews()
+        addBackButton()
+        addTitle("⚙️ الخدمات والإرسال")
+        addText("من هنا تستطيع إيقاف أو تشغيل استقبال الحوالات ومعالجة طابور الإرسال. عند الإيقاف لا تضيع الحوالات؛ تبقى محفوظة حتى تعيد التشغيل.")
+
+        val enabled = ServiceControl.isEnabled(this)
+        val status = TextView(this).apply {
+            text = if (enabled) "🟢 الخدمات مفعّلة" else "🔴 الخدمات متوقفة (وضع الصيانة)"
+            textSize = 18f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(if (enabled) Color.rgb(28,120,75) else Color.rgb(180,55,55))
+            gravity = Gravity.CENTER
+            setPadding(8.dp(), 14.dp(), 8.dp(), 14.dp())
+        }
+        content.addView(status)
+
+        val toggle = Switch(this).apply {
+            text = if (enabled) "إيقاف الخدمات مؤقتًا" else "تشغيل الخدمات"
+            textSize = 16f
+            isChecked = enabled
+            gravity = Gravity.RIGHT
+            setPadding(8.dp(), 8.dp(), 8.dp(), 8.dp())
+        }
+        toggle.setOnCheckedChangeListener { _, checked ->
+            ServiceControl.setEnabled(this, checked)
+            if (checked) CardQueueProcessor.process(this)
+            showServices()
+            Toast.makeText(this, if (checked) "تم تشغيل الخدمات واستئناف الطابور" else "تم إيقاف الخدمات. الحوالات الجديدة ستنتظر في الطابور", Toast.LENGTH_LONG).show()
+        }
+        content.addView(toggle, LinearLayout.LayoutParams(-1, -2))
+
+        addSectionTitle("طابور الإرسال")
+        val pendingItems = PendingQueue.pending(this)
+        addText("عدد الحوالات المعلقة: " + pendingItems.size)
+        if (pendingItems.isEmpty()) {
+            addText("لا توجد حوالات معلقة حاليًا.")
+        } else {
+            pendingItems.take(30).forEachIndexed { index, item ->
+                val error = if (item.error.isBlank()) "" else "\n⚠️ " + item.error
+                addText((index + 1).toString() + ". " + item.amount + " ريال → " + item.phone + " • SIM" + item.sim + error)
+            }
+            if (pendingItems.size > 30) addText("يوجد " + (pendingItems.size - 30) + " حوالة إضافية في الطابور.")
+        }
+
+        addButton("🔄 معالجة الطابور الآن", true) {
+            if (ServiceControl.isEnabled(this)) {
+                CardQueueProcessor.process(this)
+                Toast.makeText(this, "تم بدء معالجة الطابور", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "الخدمات متوقفة. شغّلها أولًا.", Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -364,6 +421,10 @@ class MainActivity : Activity() {
             if (valueView != null) dashboardCategoryViews[amount] = valueView
             content.addView(row)
         }
+
+        addSectionTitle("حالة خدمات الإرسال")
+        addText(if (ServiceControl.isEnabled(this)) "🟢 الخدمات مفعّلة — الإرسال يعمل" else "🔴 الخدمات متوقفة — وضع الصيانة")
+        addButton("⚙️ تفعيل / إيقاف الخدمات") { showServices() }
 
         addSectionTitle("إدارة سريعة")
         addButton("➕ إضافة فئة كروت جديدة", true) { showCategories() }
