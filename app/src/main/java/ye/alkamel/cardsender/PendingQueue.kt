@@ -34,6 +34,21 @@ object PendingQueue {
             val p=line.split("|",limit=8);if(p.size<8)null else PendingSale(p[0],p[1],p[2],p[3].toIntOrNull()?:return@mapNotNull null,p[4],p[5].toIntOrNull()?:1,p[6].toIntOrNull()?:return@mapNotNull null,p[7])
         }
     }
-    private fun write(context:Context,rows:List<PendingSale>){val f=file(context);if(rows.isEmpty()){if(f.exists())f.writeText("");return};f.writeText(rows.joinToString("\n"){serialize(it)}+"\n")}
+    private fun write(context:Context,rows:List<PendingSale>){
+        val f=file(context)
+        f.parentFile?.mkdirs()
+        if(rows.isEmpty()){
+            if(f.exists()) f.writeText("")
+            return
+        }
+        // كتابة ذرية: نكتب ملفًا مؤقتًا ثم نستبدل الملف القديم، حتى لا تتلف قائمة
+        // الحوالات إذا توقف التطبيق أو انقطع الهاتف أثناء الحفظ.
+        val temp=File(f.parentFile, f.name+".tmp")
+        temp.writeText(rows.joinToString("\n"){serialize(it)}+"\n")
+        if(!temp.renameTo(f)){
+            f.writeText(rows.joinToString("\n"){serialize(it)}+"\n")
+            temp.delete()
+        }
+    }
     private fun serialize(row:PendingSale)=listOf(row.id,row.time,row.fingerprint,row.amount,row.phone,row.sim,row.subscriptionId,row.error).joinToString("|")
 }
