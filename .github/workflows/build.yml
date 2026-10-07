@@ -23,20 +23,20 @@ jobs:
       - name: Upload installable release APK
         uses: actions/upload-artifact@v4
         with:
-          name: AlKamelOnline-v1.11.0-release
+          name: AlKamelOnline-v1.12.0-release
           path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: AlKamelOnline-v1.11.0-debug
+          name: AlKamelOnline-v1.12.0-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
       - name: Package complete project
-        run: git archive --format=zip --output="مشروع الكامل اونلاين v1.11.0.zip" HEAD
+        run: git archive --format=zip --output="مشروع الكامل اونلاين v1.12.0.zip" HEAD
       - name: Upload complete project
         uses: actions/upload-artifact@v4
         with:
-          name: مشروع الكامل اونلاين v1.11.0
-          path: مشروع الكامل اونلاين v1.11.0.zip
+          name: مشروع الكامل اونلاين v1.12.0
+          path: مشروع الكامل اونلاين v1.12.0.zip
           if-no-files-found: error
