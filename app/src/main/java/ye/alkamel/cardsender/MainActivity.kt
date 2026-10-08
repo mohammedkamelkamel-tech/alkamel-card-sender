@@ -383,7 +383,43 @@ class MainActivity : Activity() {
         } else {
             pendingItems.take(30).forEachIndexed { index, item ->
                 val error = if (item.error.isBlank()) "" else "\n⚠️ " + item.error
-                addText((index + 1).toString() + ". " + item.amount + " ريال → " + item.phone + " • SIM" + item.sim + error)
+                val card = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(12.dp(), 10.dp(), 12.dp(), 10.dp())
+                    setBackgroundColor(Color.WHITE)
+                }
+                card.addView(TextView(this).apply {
+                    text = (index + 1).toString() + ". " + item.amount + " ريال → " + item.phone +
+                        " • SIM" + item.sim + (if (item.allowed) "\n✅ مسموح بالإرسال" else "") + error
+                    textSize = 16f
+                    setTextColor(Color.rgb(35, 35, 35))
+                }, LinearLayout.LayoutParams(-1, -2))
+                val actions = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    layoutDirection = View.LAYOUT_DIRECTION_RTL
+                }
+                val allowButton = Button(this).apply {
+                    text = if (item.allowed) "سماح ✓" else "سماح"
+                    setOnClickListener {
+                        PendingQueue.allow(this@MainActivity, item.id)
+                        CardQueueProcessor.process(this@MainActivity)
+                        Toast.makeText(this@MainActivity, "تم السماح بمعالجة الحوالة المحددة", Toast.LENGTH_SHORT).show()
+                        showServices()
+                    }
+                }
+                val ignoreButton = Button(this).apply {
+                    text = "تجاهل"
+                    setOnClickListener {
+                        SmsDedup.markProcessed(this@MainActivity, item.fingerprint)
+                        PendingQueue.remove(this@MainActivity, item.id)
+                        Toast.makeText(this@MainActivity, "تم تجاهل الحوالة ومنع إرسال كرت آخر لها", Toast.LENGTH_LONG).show()
+                        showServices()
+                    }
+                }
+                actions.addView(allowButton, LinearLayout.LayoutParams(0, -2, 1f).apply { setMargins(0, 0, 6.dp(), 0) })
+                actions.addView(ignoreButton, LinearLayout.LayoutParams(0, -2, 1f).apply { setMargins(6.dp(), 0, 0, 0) })
+                card.addView(actions, LinearLayout.LayoutParams(-1, -2))
+                content.addView(card, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, 8.dp()) })
             }
             if (pendingItems.size > 30) addText("يوجد " + (pendingItems.size - 30) + " حوالة إضافية في الطابور.")
         }
@@ -1072,9 +1108,11 @@ class MainActivity : Activity() {
             tag = "alternate_list"
             orientation = LinearLayout.VERTICAL
         }
-        ContactMap.all(this).forEach { (a, p) ->
+        ContactMap.all(this).toSortedMap().entries.forEachIndexed { index, entry ->
+            val a = entry.key
+            val p = entry.value
             list.addView(TextView(this).apply {
-                text = "البديل: $a  ←  الجوال: $p"
+                text = (index + 1).toString() + ". البديل: $a  ←  الجوال: $p"
                 textSize = 16f
                 setTextColor(Color.rgb(35,35,35))
                 setPadding(12,10,12,10)
