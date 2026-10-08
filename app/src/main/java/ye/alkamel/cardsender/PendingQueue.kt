@@ -21,7 +21,9 @@ object PendingQueue {
         append(context,PendingSale(id,time,fingerprint,amount,phone.filterNot{it=='|'},sim,subscriptionId)); true
     }
     fun peek(context:Context):PendingSale?=lock.withLock{read(context).firstOrNull()}
-    fun remove(context:Context,id:String)=lock.withLock{write(context,read(context).filterNot{it.id==id})}\n    fun allow(context:Context,id:String)=lock.withLock{write(context,read(context).map{if(it.id==id)it.copy(allowed=true)else it})}\n    fun nextForProcessing(context:Context,servicesEnabled:Boolean):PendingSale?=lock.withLock{val rows=read(context);if(servicesEnabled)rows.firstOrNull()else rows.firstOrNull{it.allowed}}
+    fun remove(context:Context,id:String)=lock.withLock{write(context,read(context).filterNot{it.id==id})}
+    fun allow(context:Context,id:String)=lock.withLock{write(context,read(context).map{if(it.id==id)it.copy(allowed=true)else it})}
+    fun nextForProcessing(context:Context,servicesEnabled:Boolean):PendingSale?=lock.withLock{val rows=read(context);if(servicesEnabled)rows.firstOrNull()else rows.firstOrNull{it.allowed}}
     fun setError(context:Context,id:String,error:String)=lock.withLock{
         val clean=error.replace("|"," ").replace("\n"," ").replace("\r"," ")
         write(context,read(context).map{if(it.id==id)it.copy(error=clean)else it})
