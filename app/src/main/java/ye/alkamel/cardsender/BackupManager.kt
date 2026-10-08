@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.documentfile.provider.DocumentFile
 import android.net.Uri
 import android.util.Base64
 import java.io.File
@@ -22,50 +23,63 @@ object BackupManager {
      */
     fun createBackup(context: Context): String? {
         return try {
-            val name = "alkamel_backup.zip"
-            val resolver = context.contentResolver
-            if (Build.VERSION.SDK_INT >= 29) {
+            val name = "alkamel_backup" + SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(Date())
+            val selectedTree = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+                .getString("backup_tree_uri", null)
+
+            if (!selectedTree.isNullOrBlank()) {
+                val treeUri = Uri.parse(selectedTree)
+                val tree = DocumentFile.fromTreeUri(context, treeUri)
+                    ?: throw IllegalStateException("مسار النسخ الاحتياطي غير متاح")
+                if (!tree.canWrite()) throw IllegalStateException("لا توجد صلاحية للكتابة في مسار النسخ الاحتياطي")
+                val file = tree.createFile("application/zip", name)
+                    ?: throw IllegalStateException("تعذر إنشاء ملف النسخة الاحتياطية")
+                try {
+                    context.contentResolver.openOutputStream(file.uri)?.use { output ->
+                        ZipOutputStream(BufferedOutputStream(output)).use { zip -> writeZip(context, zip) }
+                    } ?: throw IllegalStateException("تعذر فتح ملف النسخة الاحتياطية")
+                } catch (e: Exception) {
+                    file.delete()
+                    throw e
+                }
+            } else if (Build.VERSION.SDK_INT >= 29) {
                 val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
                 val relativePath = Environment.DIRECTORY_DOWNLOADS + "/الكامل أونلاين/نسخ احتياطية/"
-                resolver.query(
-                    collection,
-                    arrayOf(MediaStore.Downloads._ID),
-                    MediaStore.Downloads.RELATIVE_PATH + " = ? AND " + MediaStore.Downloads.DISPLAY_NAME + " = ?",
-                    arrayOf(relativePath, name),
-                    null
-                )?.use { cursor ->
-                    val idIndex = cursor.getColumnIndexOrThrow(MediaStore.Downloads._ID)
-                    while (cursor.moveToNext()) {
-                        resolver.delete(Uri.withAppendedPath(collection, cursor.getLong(idIndex).toString()), null, null)
-                    }
-                }
                 val values = ContentValues().apply {
                     put(MediaStore.Downloads.DISPLAY_NAME, name)
                     put(MediaStore.Downloads.MIME_TYPE, "application/zip")
                     put(MediaStore.Downloads.RELATIVE_PATH, relativePath)
                     put(MediaStore.Downloads.IS_PENDING, 1)
                 }
-                val uri = resolver.insert(collection, values) ?: return null
+                val uri = resolverInsert(context, collection, values)
+                    ?: throw IllegalStateException("تعذر إنشاء ملف النسخة الاحتياطية")
                 try {
-                    resolver.openOutputStream(uri)?.use { output ->
-                        ZipOutputStream(output).use { zip -> writeZip(context, zip) }
+                    context.contentResolver.openOutputStream(uri)?.use { output ->
+                        ZipOutputStream(BufferedOutputStream(output)).use { zip -> writeZip(context, zip) }
                     } ?: throw IllegalStateException("تعذر فتح ملف النسخة الاحتياطية")
-                    resolver.update(uri, ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) }, null, null)
+                    context.contentResolver.update(uri, ContentValues().apply {
+                        put(MediaStore.Downloads.IS_PENDING, 0)
+                    }, null, null)
                 } catch (e: Exception) {
-                    resolver.delete(uri, null, null)
+                    context.contentResolver.delete(uri, null, null)
                     throw e
                 }
             } else {
                 val dir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "نسخ احتياطية").apply { mkdirs() }
                 File(dir, name).outputStream().use { output ->
-                    ZipOutputStream(output).use { zip -> writeZip(context, zip) }
+                    ZipOutputStream(BufferedOutputStream(output)).use { zip -> writeZip(context, zip) }
                 }
             }
+
             val stamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
-            context.getSharedPreferences("settings", Context.MODE_PRIVATE).edit().putString("last_backup", stamp).apply()
+            context.getSharedPreferences("settings", Context.MODE_PRIVATE).edit()
+                .putString("last_backup", stamp).apply()
             name
         } catch (_: Exception) { null }
     }
+
+    private fun resolverInsert(context: Context, collection: Uri, values: ContentValues): Uri? =
+        context.contentResolver.insert(collection, values)
 
     fun restoreBackup(context: Context, uri: Uri): Result {
         return try {
