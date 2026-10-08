@@ -715,147 +715,224 @@ class MainActivity : Activity() {
         addBackButton()
         addTitle("مخزون الكروت")
         val categories = CardStore.categories(this)
-        if (categories.isEmpty()) { addText("لا توجد فئات. أضف فئة من قسم الفئات."); return }
-        addText("اختر SIM والفئة لعرض الكروت. يمكنك حذف كرت محدد أو إنقاص عدد من بداية المخزون.")
+        if (categories.isEmpty()) {
+            addText("لا توجد فئات. أضف فئة من قسم الفئات.")
+            return
+        }
+        addText("اختر SIM والفئة. للدخول إلى وضع التعديل اضغط «✏️ تعديل الكروت» ثم اختر الكروت التي تريد حذفها.")
 
         val simSpinner = Spinner(this)
-        simSpinner.setBackgroundColor(Color.WHITE)
         simSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, listOf("SIM1", "SIM2"))
         content.addView(simSpinner)
 
         val spinner = Spinner(this)
-        spinner.setBackgroundColor(Color.WHITE)
         content.addView(spinner)
+
+        val actionBar = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, 8, 0, 8)
+        }
+        content.addView(actionBar)
 
         val cardsContainer = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         content.addView(cardsContainer)
 
-        fun currentSim(): Int = simSpinner.selectedItemPosition + 1
+        var editMode = false
+        var selectedCards = mutableSetOf<String>()
+        var currentCards = emptyList<String>()
 
-        fun refreshCategorySpinner() {
-            val sim = currentSim()
-            val currentPosition = spinner.selectedItemPosition.coerceAtLeast(0)
-            spinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item,
-                CardStore.categories(this).map { amount -> "$amount ريال — ${CardStore.count(this, amount, sim)} كرت SIM$sim" })
-            if (spinner.adapter.count > 0) spinner.setSelection(currentPosition.coerceAtMost(spinner.adapter.count - 1))
+        fun currentSim(): Int = simSpinner.selectedItemPosition + 1
+        fun currentAmount(): Int {
+            val list = CardStore.categories(this)
+            return list[spinner.selectedItemPosition.coerceIn(0, (list.size - 1).coerceAtLeast(0))]
         }
 
-        fun renderCards() {
-            cardsContainer.removeAllViews()
-            if (spinner.adapter.count == 0) return
-            val amount = categories[spinner.selectedItemPosition.coerceAtMost(categories.lastIndex)]
+        fun setSpinnerItems() {
             val sim = currentSim()
-            val cards = CardStore.cards(this, amount, sim)
+            val list = CardStore.categories(this)
+            val position = spinner.selectedItemPosition.coerceAtLeast(0)
+            spinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item,
+                list.map { amount -> "§amount ريال — ${CardStore.count(this, amount, sim)} كرت" })
+            if (spinner.adapter.count > 0) spinner.setSelection(position.coerceAtMost(spinner.adapter.count - 1))
+        }
+
+        lateinit var renderCards: () -> Unit
+        lateinit var deleteButton: Button
+
+        fun addActionButton(text: String, enabled: Boolean = true, onClick: () -> Unit) {
+            actionBar.addView(Button(this).apply {
+                this.text = text
+                isEnabled = enabled
+                textSize = 16f
+                setTextColor(Color.rgb(20, 91, 150))
+                setOnClickListener { onClick() }
+            }, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 4, 0, 4) })
+        }
+
+        fun deleteSelected() {
+            if (selectedCards.isEmpty()) {
+                Toast.makeText(this, "حدد كرتًا واحدًا على الأقل أولًا", Toast.LENGTH_SHORT).show()
+                return
+            }
+            val amount = currentAmount()
+            val sim = currentSim()
+            val count = CardStore.deleteCards(this, amount, selectedCards, sim)
+            Toast.makeText(this, "تم حذف §count كرت من المخزون", Toast.LENGTH_LONG).show()
+            editMode = false
+            selectedCards.clear()
+            setSpinnerItems()
+            renderCards()
+        }
+
+        fun rebuildActions() {
+            actionBar.removeAllViews()
+            if (!editMode) {
+                addActionButton("✏️ تعديل الكروت") {
+                    editMode = true
+                    selectedCards.clear()
+                    renderCards()
+                }
+                addActionButton("➖ إنقاص عدد من المخزون") {
+                    val amount = currentAmount()
+                    val sim = currentSim()
+                    val available = CardStore.count(this, amount, sim)
+                    if (available <= 0) {
+                        Toast.makeText(this, "المخزون فارغ", Toast.LENGTH_SHORT).show()
+                        return@addActionButton
+                    }
+                    val input = EditText(this).apply {
+                        hint = "عدد الكروت المراد إنقاصها"
+                        inputType = android.text.InputType.TYPE_CLASS_NUMBER
+                        setSingleLine(true)
+                        textSize = 18f
+                        gravity = Gravity.RIGHT
+                        setTextColor(Color.rgb(25,25,25))
+                    }
+                    android.app.AlertDialog.Builder(this)
+                        .setTitle("إنقاص المخزون — SIM$sim — $amount ريال")
+                        .setView(input)
+                        .setNegativeButton("إلغاء", null)
+                        .setPositiveButton("إنقاص") { _, _ ->
+                            val quantity = input.text.toString().trim().toIntOrNull() ?: 0
+                            val removed = CardStore.removeFirstCards(this, amount, quantity, sim)
+                            Toast.makeText(this, "تم إنقاص §removed كرت من المخزون", Toast.LENGTH_LONG).show()
+                            setSpinnerItems()
+                            renderCards()
+                        }.show()
+                }
+            } else {
+                addActionButton("☑️ تحديد الكل") {
+                    selectedCards = currentCards.toMutableSet()
+                    renderCards()
+                }
+                deleteButton = Button(this).apply {
+                    text = "🗑️ حذف الكروت المحددة (0)"
+                    isEnabled = false
+                    textSize = 16f
+                    setTextColor(Color.rgb(20, 91, 150))
+                    setOnClickListener { deleteSelected() }
+                }
+                actionBar.addView(deleteButton, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 4, 0, 4) })
+                addActionButton("↩️ إلغاء وضع التعديل") {
+                    editMode = false
+                    selectedCards.clear()
+                    renderCards()
+                }
+            }
+        }
+
+        renderCards = {
+            cardsContainer.removeAllViews()
+            val amount = currentAmount()
+            val sim = currentSim()
+            currentCards = CardStore.cards(this, amount, sim)
 
             cardsContainer.addView(TextView(this).apply {
-                text = "SIM$sim — فئة $amount ريال — ${cards.size} كرت متبقي"
+                text = "SIM$sim — فئة $amount ريال — ${currentCards.size} كرت متبقي"
                 textSize = 18f
                 typeface = Typeface.DEFAULT_BOLD
                 setTextColor(Color.rgb(30,30,30))
-                setPadding(0,16,0,10)
+                setPadding(0, 16, 0, 10)
             })
 
-            addButton("🗑️ حذف كرت محدد من المخزون") {
-                if (cards.isEmpty()) {
-                    Toast.makeText(this, "لا يوجد كروت للحذف", Toast.LENGTH_SHORT).show()
-                    return@addButton
-                }
-                val cardInput = EditText(this).apply {
-                    hint = "اكتب رقم الكرت كاملًا"
-                    setSingleLine(true)
-                    textSize = 17f
-                    gravity = Gravity.RIGHT
-                    setTextColor(Color.rgb(25,25,25))
-                }
-                android.app.AlertDialog.Builder(this)
-                    .setTitle("حذف كرت من SIM$sim")
-                    .setView(cardInput)
-                    .setNegativeButton("إلغاء", null)
-                    .setPositiveButton("حذف") { _, _ ->
-                        val card = cardInput.text.toString().trim()
-                        val deleted = CardStore.deleteCard(this, amount, card, sim)
-                        Toast.makeText(this, if (deleted) "تم حذف الكرت من المخزون" else "الكرت غير موجود في هذه الفئة/SIM", Toast.LENGTH_LONG).show()
-                        showStock()
-                    }.show()
-            }
-
-            addButton("➖ إنقاص عدد من المخزون") {
-                if (cards.isEmpty()) {
-                    Toast.makeText(this, "المخزون فارغ", Toast.LENGTH_SHORT).show()
-                    return@addButton
-                }
-                val quantityInput = EditText(this).apply {
-                    hint = "عدد الكروت المراد إنقاصها"
-                    inputType = android.text.InputType.TYPE_CLASS_NUMBER
-                    setSingleLine(true)
-                    textSize = 18f
-                    gravity = Gravity.RIGHT
-                    setTextColor(Color.rgb(25,25,25))
-                }
-                android.app.AlertDialog.Builder(this)
-                    .setTitle("إنقاص المخزون — SIM$sim — $amount ريال")
-                    .setView(quantityInput)
-                    .setNegativeButton("إلغاء", null)
-                    .setPositiveButton("إنقاص") { _, _ ->
-                        val quantity = quantityInput.text.toString().trim().toIntOrNull() ?: 0
-                        val removed = CardStore.removeFirstCards(this, amount, quantity, sim)
-                        Toast.makeText(this, "تم إنقاص $removed كرت من المخزون", Toast.LENGTH_LONG).show()
-                        showStock()
-                    }.show()
-            }
-
-            if (cards.isEmpty()) {
+            if (currentCards.isEmpty()) {
                 cardsContainer.addView(TextView(this).apply {
                     text = "لا يوجد كروت متبقية في هذه الفئة على SIM$sim."
                     textSize = 15f
                     setTextColor(Color.rgb(45,45,45))
-                    setPadding(0,8,0,10)
+                    setPadding(0, 8, 0, 10)
                 })
-                return
+                rebuildActions()
+                return@renderCards
             }
 
-            cards.forEachIndexed { index, card ->
-                val box = LinearLayout(this).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    gravity = Gravity.CENTER_VERTICAL
-                    setPadding(14,12,14,12)
-                    setBackgroundColor(Color.WHITE)
-                }
-                box.addView(TextView(this@MainActivity).apply {
-                    text = "${index + 1}."
+            if (editMode) {
+                cardsContainer.addView(TextView(this).apply {
+                    text = "وضع التعديل: ضع علامة ✓ أمام الكروت التي تريد حذفها"
                     textSize = 15f
                     typeface = Typeface.DEFAULT_BOLD
-                    setTextColor(Color.rgb(20,90,145))
-                }, LinearLayout.LayoutParams(42.dp(), -2))
-                box.addView(TextView(this@MainActivity).apply {
-                    text = card
-                    textSize = 17f
-                    setTextColor(Color.rgb(25,25,25))
-                }, LinearLayout.LayoutParams(0,-2,1f))
-                cardsContainer.addView(box, LinearLayout.LayoutParams(-1,-2).apply {
-                    setMargins(0,0,0,6)
+                    setTextColor(Color.rgb(180, 70, 40))
+                    setPadding(0, 6, 0, 12)
                 })
+            }
+
+            currentCards.forEachIndexed { index, card ->
+                if (editMode) {
+                    val check = CheckBox(this).apply {
+                        text = "${index + 1}.  $card"
+                        textSize = 17f
+                        setTextColor(Color.rgb(25,25,25))
+                        isChecked = selectedCards.contains(card)
+                        setPadding(10, 8, 10, 8)
+                        setOnCheckedChangeListener { _, checked ->
+                            if (checked) selectedCards.add(card) else selectedCards.remove(card)
+                            deleteButton.text = "🗑️ حذف الكروت المحددة (${selectedCards.size})"
+                            deleteButton.isEnabled = selectedCards.isNotEmpty()
+                        }
+                    }
+                    cardsContainer.addView(check, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, 4) })
+                } else {
+                    cardsContainer.addView(TextView(this).apply {
+                        text = "${index + 1}.  $card"
+                        textSize = 17f
+                        setTextColor(Color.rgb(25,25,25))
+                        setPadding(14, 10, 14, 10)
+                        setBackgroundColor(Color.WHITE)
+                    }, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, 4) })
+                }
+            }
+            rebuildActions()
+            if (editMode) {
+                deleteButton.text = "🗑️ حذف الكروت المحددة (${selectedCards.size})"
+                deleteButton.isEnabled = selectedCards.isNotEmpty()
             }
         }
 
         simSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                refreshCategorySpinner()
+                editMode = false
+                selectedCards.clear()
+                setSpinnerItems()
                 renderCards()
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
         spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) { renderCards() }
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                editMode = false
+                selectedCards.clear()
+                renderCards()
+            }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
         addButton("🔄 تحديث المخزون والأرقام") {
-            refreshCategorySpinner()
+            selectedCards.clear()
+            setSpinnerItems()
             renderCards()
         }
 
-        refreshCategorySpinner()
+        setSpinnerItems()
         renderCards()
     }
 
