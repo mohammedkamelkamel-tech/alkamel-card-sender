@@ -8,7 +8,7 @@ import java.util.Locale
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
-data class PendingSale(val id:String,val time:String,val fingerprint:String,val amount:Int,val phone:String,val sim:Int,val subscriptionId:Int,val error:String="")
+data class PendingSale(val id:String,val time:String,val fingerprint:String,val amount:Int,val phone:String,val sim:Int,val subscriptionId:Int,val error:String="",val allowed:Boolean=false)
 
 object PendingQueue {
     private const val FILE_NAME="pending_sales.queue"
@@ -21,7 +21,7 @@ object PendingQueue {
         append(context,PendingSale(id,time,fingerprint,amount,phone.filterNot{it=='|'},sim,subscriptionId)); true
     }
     fun peek(context:Context):PendingSale?=lock.withLock{read(context).firstOrNull()}
-    fun remove(context:Context,id:String)=lock.withLock{write(context,read(context).filterNot{it.id==id})}
+    fun remove(context:Context,id:String)=lock.withLock{write(context,read(context).filterNot{it.id==id})}\n    fun allow(context:Context,id:String)=lock.withLock{write(context,read(context).map{if(it.id==id)it.copy(allowed=true)else it})}\n    fun nextForProcessing(context:Context,servicesEnabled:Boolean):PendingSale?=lock.withLock{val rows=read(context);if(servicesEnabled)rows.firstOrNull()else rows.firstOrNull{it.allowed}}
     fun setError(context:Context,id:String,error:String)=lock.withLock{
         val clean=error.replace("|"," ").replace("\n"," ").replace("\r"," ")
         write(context,read(context).map{if(it.id==id)it.copy(error=clean)else it})
@@ -31,7 +31,7 @@ object PendingQueue {
     private fun read(context:Context):List<PendingSale>{
         val f=file(context);if(!f.exists())return emptyList()
         return f.readLines().mapNotNull{line->
-            val p=line.split("|",limit=8);if(p.size<8)null else PendingSale(p[0],p[1],p[2],p[3].toIntOrNull()?:return@mapNotNull null,p[4],p[5].toIntOrNull()?:1,p[6].toIntOrNull()?:return@mapNotNull null,p[7])
+            val p=line.split("|",limit=9);if(p.size<8)null else PendingSale(p[0],p[1],p[2],p[3].toIntOrNull()?:return@mapNotNull null,p[4],p[5].toIntOrNull()?:1,p[6].toIntOrNull()?:return@mapNotNull null,p[7],p.getOrNull(8)?.toBoolean()?:false)
         }
     }
     private fun write(context:Context,rows:List<PendingSale>){
@@ -50,5 +50,5 @@ object PendingQueue {
             temp.delete()
         }
     }
-    private fun serialize(row:PendingSale)=listOf(row.id,row.time,row.fingerprint,row.amount,row.phone,row.sim,row.subscriptionId,row.error).joinToString("|")
+    private fun serialize(row:PendingSale)=listOf(row.id,row.time,row.fingerprint,row.amount,row.phone,row.sim,row.subscriptionId,row.error,row.allowed).joinToString("|")
 }
