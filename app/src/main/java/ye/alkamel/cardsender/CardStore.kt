@@ -264,21 +264,28 @@ object CardStore {
     }
 
     fun sales(context: Context): List<Sale> = lock.withLock {
-        val f = salesFile(context)
+        (1..2).flatMap { sim -> readSales(context, sim) }
+            .sortedByDescending { it.time }
+    }
+
+    fun sales(context: Context, sim: Int): List<Sale> = lock.withLock {
+        if (sim !in 1..2) emptyList() else readSales(context, sim)
+    }
+
+    private fun readSales(context: Context, sim: Int): List<Sale> {
+        val f = salesFile(context, sim)
         if (!f.exists()) return emptyList()
-        f.readLines().drop(1).mapNotNull { line ->
+        return f.readLines().drop(1).mapNotNull { line ->
             val p = line.split(",", limit = 5)
             if (p.size >= 4) Sale(
                 p[0],
                 p[1].toIntOrNull() ?: return@mapNotNull null,
                 p[2],
                 p[3],
-                p.getOrNull(4)?.toIntOrNull() ?: 1
+                p.getOrNull(4)?.toIntOrNull() ?: sim
             ) else null
-        }.reversed()
+        }.sortedByDescending { it.time }
     }
-
-    fun sales(context: Context, sim: Int): List<Sale> = sales(context).filter { it.sim == sim }
 
     fun salesCount(context: Context): Int = sales(context).size
     fun salesCount(context: Context, sim: Int): Int = sales(context, sim).size
