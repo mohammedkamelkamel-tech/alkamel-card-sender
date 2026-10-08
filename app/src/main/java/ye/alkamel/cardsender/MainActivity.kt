@@ -784,7 +784,7 @@ class MainActivity : Activity() {
             val list = CardStore.categories(this)
             val position = spinner.selectedItemPosition.coerceAtLeast(0)
             spinner.adapter = stockSpinnerAdapter(
-                list.map { amount -> "$" + "amount ريال — " + CardStore.count(this, amount, sim) + " كرت" }
+                list.map { amount -> "${amount} ريال — ${CardStore.count(this, amount, sim)} كرت" }
             )
             if (spinner.adapter.count > 0) spinner.setSelection(position.coerceAtMost(spinner.adapter.count - 1))
         }
