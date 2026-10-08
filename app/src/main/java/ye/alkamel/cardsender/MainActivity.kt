@@ -723,10 +723,12 @@ class MainActivity : Activity() {
 
         val simSpinner = Spinner(this)
         simSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, listOf("SIM1", "SIM2"))
-        content.addView(simSpinner)
+        simSpinner.setBackgroundColor(Color.WHITE)
+        content.addView(simSpinner, LinearLayout.LayoutParams(-1, 52.dp()).apply { setMargins(0, 6.dp(), 0, 6.dp()) })
 
         val spinner = Spinner(this)
-        content.addView(spinner)
+        spinner.setBackgroundColor(Color.WHITE)
+        content.addView(spinner, LinearLayout.LayoutParams(-1, 52.dp()).apply { setMargins(0, 6.dp(), 0, 6.dp()) })
 
         val actionBar = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -752,7 +754,7 @@ class MainActivity : Activity() {
             val list = CardStore.categories(this)
             val position = spinner.selectedItemPosition.coerceAtLeast(0)
             spinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item,
-                list.map { amount -> "§amount ريال — ${CardStore.count(this, amount, sim)} كرت" })
+                list.map { amount -> "$amount ريال — ${CardStore.count(this, amount, sim)} كرت" })
             if (spinner.adapter.count > 0) spinner.setSelection(position.coerceAtMost(spinner.adapter.count - 1))
         }
 
@@ -765,6 +767,8 @@ class MainActivity : Activity() {
                 isEnabled = enabled
                 textSize = 16f
                 setTextColor(Color.rgb(20, 91, 150))
+                background = roundedBackground(Color.WHITE, Color.rgb(205, 220, 232), 1.dp())
+                setPadding(14.dp(), 0, 14.dp(), 0)
                 setOnClickListener { onClick() }
             }, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 4, 0, 4) })
         }
@@ -777,7 +781,7 @@ class MainActivity : Activity() {
             val amount = currentAmount()
             val sim = currentSim()
             val count = CardStore.deleteCards(this, amount, selectedCards, sim)
-            Toast.makeText(this, "تم حذف §count كرت من المخزون", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "تم حذف $count كرت من المخزون", Toast.LENGTH_LONG).show()
             editMode = false
             selectedCards.clear()
             setSpinnerItems()
@@ -815,7 +819,7 @@ class MainActivity : Activity() {
                         .setPositiveButton("إنقاص") { _, _ ->
                             val quantity = input.text.toString().trim().toIntOrNull() ?: 0
                             val removed = CardStore.removeFirstCards(this, amount, quantity, sim)
-                            Toast.makeText(this, "تم إنقاص §removed كرت من المخزون", Toast.LENGTH_LONG).show()
+                            Toast.makeText(this, "تم إنقاص $removed كرت من المخزون", Toast.LENGTH_LONG).show()
                             setSpinnerItems()
                             renderCards()
                         }.show()
