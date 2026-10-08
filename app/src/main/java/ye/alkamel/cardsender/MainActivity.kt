@@ -721,8 +721,38 @@ class MainActivity : Activity() {
         }
         addText("اختر SIM والفئة. للدخول إلى وضع التعديل اضغط «✏️ تعديل الكروت» ثم اختر الكروت التي تريد حذفها.")
 
+        fun stockSpinnerAdapter(items: List<String>): ArrayAdapter<String> {
+            return object : ArrayAdapter<String>(
+                this,
+                android.R.layout.simple_spinner_item,
+                items
+            ) {
+                override fun getView(position: Int, convertView: View?, parent: android.view.ViewGroup): View {
+                    val view = (convertView as? TextView) ?: TextView(this@MainActivity)
+                    view.text = getItem(position) ?: ""
+                    view.textSize = 18f
+                    view.setTextColor(Color.rgb(25, 75, 110))
+                    view.gravity = Gravity.CENTER_VERTICAL or Gravity.RIGHT
+                    view.setPadding(18.dp(), 0, 18.dp(), 0)
+                    view.setBackgroundColor(Color.WHITE)
+                    return view
+                }
+
+                override fun getDropDownView(position: Int, convertView: View?, parent: android.view.ViewGroup): View {
+                    val view = (convertView as? TextView) ?: TextView(this@MainActivity)
+                    view.text = getItem(position) ?: ""
+                    view.textSize = 17f
+                    view.setTextColor(Color.rgb(25, 75, 110))
+                    view.gravity = Gravity.CENTER_VERTICAL or Gravity.RIGHT
+                    view.setPadding(18.dp(), 14.dp(), 18.dp(), 14.dp())
+                    view.setBackgroundColor(Color.WHITE)
+                    return view
+                }
+            }
+        }
+
         val simSpinner = Spinner(this)
-        simSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, listOf("SIM1", "SIM2"))
+        simSpinner.adapter = stockSpinnerAdapter(listOf("SIM1", "SIM2"))
         simSpinner.setBackgroundColor(Color.WHITE)
         content.addView(simSpinner, LinearLayout.LayoutParams(-1, 52.dp()).apply { setMargins(0, 6.dp(), 0, 6.dp()) })
 
@@ -753,8 +783,9 @@ class MainActivity : Activity() {
             val sim = currentSim()
             val list = CardStore.categories(this)
             val position = spinner.selectedItemPosition.coerceAtLeast(0)
-            spinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item,
-                list.map { amount -> "$amount ريال — ${CardStore.count(this, amount, sim)} كرت" })
+            spinner.adapter = stockSpinnerAdapter(
+                list.map { amount -> "$" + "amount ريال — " + CardStore.count(this, amount, sim) + " كرت" }
+            )
             if (spinner.adapter.count > 0) spinner.setSelection(position.coerceAtMost(spinner.adapter.count - 1))
         }
 
