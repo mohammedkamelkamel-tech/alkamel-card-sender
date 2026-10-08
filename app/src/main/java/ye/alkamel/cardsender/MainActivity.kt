@@ -1727,7 +1727,12 @@ class MainActivity : Activity() {
 
         val last = getSharedPreferences("settings", MODE_PRIVATE)
             .getString("last_backup", "لم يتم إنشاء نسخة بعد")
-        addText("آخر نسخة احتياطية: " + last)
+        addText("آخر نسخة احتياطية ناجحة: " + last)
+        val prefsForBackup = getSharedPreferences("settings", MODE_PRIVATE)
+        val lastPath = prefsForBackup.getString("last_backup_path", null)
+        if (!lastPath.isNullOrBlank()) addText("مكان آخر نسخة محفوظة: " + lastPath)
+        val backupError = prefsForBackup.getString("last_backup_error", null)
+        if (!backupError.isNullOrBlank()) addText("آخر خطأ في النسخ الاحتياطي: " + backupError)
 
         val settings = getSharedPreferences("settings", MODE_PRIVATE)
         val backupUri = settings.getString("backup_tree_uri", null)
@@ -1755,11 +1760,13 @@ class MainActivity : Activity() {
 
         addButton("💾 إنشاء نسخة احتياطية الآن", true) {
             val name = BackupManager.createBackup(this)
-            Toast.makeText(
-                this,
-                if (name != null) "تم حفظ النسخة داخل مجلد التنزيلات" else "فشل إنشاء النسخة الاحتياطية",
-                Toast.LENGTH_LONG
-            ).show()
+            val prefs = getSharedPreferences("settings", MODE_PRIVATE)
+            val message = if (name != null) {
+                "تم حفظ النسخة بنجاح: " + name + "\nالمسار: " + (prefs.getString("last_backup_path", "") ?: "")
+            } else {
+                "فشل إنشاء النسخة: " + (prefs.getString("last_backup_error", "سبب غير معروف") ?: "سبب غير معروف")
+            }
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
             showBackup()
         }
 
@@ -1926,7 +1933,7 @@ class MainActivity : Activity() {
         val request = PeriodicWorkRequestBuilder<BackupWorker>(12, TimeUnit.HOURS).build()
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             "alkamel_12h_backup",
-            ExistingPeriodicWorkPolicy.KEEP,
+            ExistingPeriodicWorkPolicy.UPDATE,
             request
         )
     }
