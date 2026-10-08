@@ -188,6 +188,20 @@ object CardStore {
         true
     }
 
+    fun deleteCards(context: Context, amount: Int, selectedCards: Collection<String>, sim: Int = 1): Int = lock.withLock {
+        val selected = selectedCards.map { it.trim() }.filter { it.isNotBlank() }.toSet()
+        if (selected.isEmpty()) return 0
+        val f = file(context, amount, sim)
+        if (!f.exists()) return 0
+        val lines = f.readLines().map { it.trim() }.filter { it.isNotEmpty() }
+        val remaining = lines.filterNot { selected.contains(it) }
+        val deleted = lines.size - remaining.size
+        if (deleted > 0) {
+            f.writeText(if (remaining.isEmpty()) "" else remaining.joinToString("\n") + "\n")
+        }
+        deleted
+    }
+
     fun removeFirstCards(context: Context, amount: Int, quantity: Int, sim: Int = 1): Int = lock.withLock {
         if (quantity <= 0) return 0
         val f = file(context, amount, sim)
