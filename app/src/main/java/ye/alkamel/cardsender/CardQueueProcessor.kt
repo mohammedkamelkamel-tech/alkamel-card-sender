@@ -10,10 +10,10 @@ object CardQueueProcessor {
     private val executor=Executors.newSingleThreadExecutor()
     fun process(context:Context){val appContext=context.applicationContext;executor.execute{processNow(appContext)}}
     private fun processNow(context:Context){
-        if(!ServiceControl.isEnabled(context))return
         if(ContextCompat.checkSelfPermission(context,Manifest.permission.SEND_SMS)!=PackageManager.PERMISSION_GRANTED)return
-        while(ServiceControl.isEnabled(context)){
-            val pending=PendingQueue.peek(context)?:return
+        while(true){
+            val servicesEnabled=ServiceControl.isEnabled(context)
+            val pending=PendingQueue.nextForProcessing(context,servicesEnabled)?:return
             if(SmsDedup.wasProcessed(context,pending.fingerprint)){PendingQueue.remove(context,pending.id);continue}
             val card=CardStore.takeFirstCard(context,pending.amount,pending.sim)
             if(card==null){PendingQueue.setError(context,pending.id,"لا يوجد كرت متوفر في مخزون فئة "+pending.amount+" ريال");return}
