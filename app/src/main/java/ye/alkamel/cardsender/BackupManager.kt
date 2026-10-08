@@ -22,22 +22,27 @@ object BackupManager {
      * ينشئ نسخة احتياطية واحدة فقط ويستبدل النسخة السابقة.
      */
     fun createBackup(context: Context): String? {
+        val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
         return try {
-            val name = "alkamel_backup" + SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(Date())
-            val selectedTree = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
-                .getString("backup_tree_uri", null)
+            val name = "alkamel_backup" + SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(Date()) + ".zip"
+            val selectedTree = prefs.getString("backup_tree_uri", null)
+            var savedLocation = ""
 
             if (!selectedTree.isNullOrBlank()) {
                 val treeUri = Uri.parse(selectedTree)
                 val tree = DocumentFile.fromTreeUri(context, treeUri)
-                    ?: throw IllegalStateException("مسار النسخ الاحتياطي غير متاح")
-                if (!tree.canWrite()) throw IllegalStateException("لا توجد صلاحية للكتابة في مسار النسخ الاحتياطي")
+                    ?: throw IllegalStateException("مسار النسخ الاحتياطي غير متاح؛ أعد تحديد المجلد")
+                if (!tree.canWrite()) throw IllegalStateException("لا توجد صلاحية للكتابة في المجلد المحدد؛ أعد تحديد مسار النسخ الاحتياطي")
                 val file = tree.createFile("application/zip", name)
-                    ?: throw IllegalStateException("تعذر إنشاء ملف النسخة الاحتياطية")
+                    ?: throw IllegalStateException("تعذر إنشاء ملف داخل المجلد المحدد")
                 try {
-                    context.contentResolver.openOutputStream(file.uri)?.use { output ->
-                        ZipOutputStream(BufferedOutputStream(output)).use { zip -> writeZip(context, zip) }
-                    } ?: throw IllegalStateException("تعذر فتح ملف النسخة الاحتياطية")
+                    val output = context.contentResolver.openOutputStream(file.uri, "w")
+                        ?: throw IllegalStateException("تعذر فتح ملف النسخة للكتابة")
+                    output.use { stream ->
+                        ZipOutputStream(BufferedOutputStream(stream)).use { zip -> writeZip(context, zip) }
+                    }
+                    if (file.length() <= 0L) throw IllegalStateException("تم إنشاء ملف النسخة لكنه فارغ")
+                    savedLocation = tree.name ?: selectedTree
                 } catch (e: Exception) {
                     file.delete()
                     throw e
@@ -52,32 +57,44 @@ object BackupManager {
                     put(MediaStore.Downloads.IS_PENDING, 1)
                 }
                 val uri = resolverInsert(context, collection, values)
-                    ?: throw IllegalStateException("تعذر إنشاء ملف النسخة الاحتياطية")
+                    ?: throw IllegalStateException("تعذر إنشاء ملف النسخة في مجلد التنزيلات")
                 try {
-                    context.contentResolver.openOutputStream(uri)?.use { output ->
-                        ZipOutputStream(BufferedOutputStream(output)).use { zip -> writeZip(context, zip) }
-                    } ?: throw IllegalStateException("تعذر فتح ملف النسخة الاحتياطية")
-                    context.contentResolver.update(uri, ContentValues().apply {
-                        put(MediaStore.Downloads.IS_PENDING, 0)
-                    }, null, null)
+                    val output = context.contentResolver.openOutputStream(uri, "w")
+                        ?: throw IllegalStateException("تعذر فتح ملف النسخة للكتابة")
+                    output.use { stream ->
+                        ZipOutputStream(BufferedOutputStream(stream)).use { zip -> writeZip(context, zip) }
+                    }
+                    val valuesDone = ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) }
+                    if (context.contentResolver.update(uri, valuesDone, null, null) <= 0) {
+                        throw IllegalStateException("تعذر إنهاء حفظ النسخة في مجلد التنزيلات")
+                    }
+                    savedLocation = "التنزيلات/الكامل أونلاين/نسخ احتياطية"
                 } catch (e: Exception) {
                     context.contentResolver.delete(uri, null, null)
                     throw e
                 }
             } else {
-                val dir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "نسخ احتياطية").apply { mkdirs() }
-                File(dir, name).outputStream().use { output ->
+                val base = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+                    ?: throw IllegalStateException("مساحة التنزيلات غير متاحة")
+                val dir = File(base, "الكامل أونلاين/نسخ احتياطية")
+                if (!dir.exists() && !dir.mkdirs()) throw IllegalStateException("تعذر إنشاء مجلد النسخ الاحتياطية")
+                val target = File(dir, name)
+                target.outputStream().use { output ->
                     ZipOutputStream(BufferedOutputStream(output)).use { zip -> writeZip(context, zip) }
                 }
+                if (!target.exists() || target.length() <= 0L) throw IllegalStateException("لم يتم حفظ ملف النسخة أو أنه فارغ")
+                savedLocation = target.absolutePath
             }
 
             val stamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
-            context.getSharedPreferences("settings", Context.MODE_PRIVATE).edit()
-                .putString("last_backup", stamp).apply()
+            prefs.edit().putString("last_backup", stamp).putString("last_backup_path", savedLocation)
+                .remove("last_backup_error").commit()
             name
-        } catch (_: Exception) { null }
+        } catch (e: Exception) {
+            prefs.edit().putString("last_backup_error", e.localizedMessage ?: e.javaClass.simpleName).commit()
+            null
+        }
     }
-
     private fun resolverInsert(context: Context, collection: Uri, values: ContentValues): Uri? =
         context.contentResolver.insert(collection, values)
 
