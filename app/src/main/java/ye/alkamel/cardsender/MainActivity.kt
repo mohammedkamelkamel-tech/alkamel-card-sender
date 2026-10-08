@@ -862,9 +862,10 @@ class MainActivity : Activity() {
                 }
                 deleteButton = Button(this).apply {
                     text = "🗑️ حذف الكروت المحددة (0)"
-                    isEnabled = false
+                    isEnabled = true
                     textSize = 16f
-                    setTextColor(Color.rgb(20, 91, 150))
+                    setTextColor(Color.rgb(170, 55, 45))
+                    background = roundedBackground(Color.WHITE, Color.rgb(205, 220, 232), 1.dp())
                     setOnClickListener { deleteSelected() }
                 }
                 actionBar.addView(deleteButton, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 4, 0, 4) })
@@ -922,7 +923,7 @@ class MainActivity : Activity() {
                         setOnCheckedChangeListener { _, checked ->
                             if (checked) selectedCards.add(card) else selectedCards.remove(card)
                             deleteButton.text = "🗑️ حذف الكروت المحددة (${selectedCards.size})"
-                            deleteButton.isEnabled = selectedCards.isNotEmpty()
+                            deleteButton.isEnabled = true
                         }
                     }
                     cardsContainer.addView(check, LinearLayout.LayoutParams(-1, -2).apply { setMargins(0, 0, 0, 4) })
@@ -939,7 +940,7 @@ class MainActivity : Activity() {
             rebuildActions()
             if (editMode) {
                 deleteButton.text = "🗑️ حذف الكروت المحددة (${selectedCards.size})"
-                deleteButton.isEnabled = selectedCards.isNotEmpty()
+                deleteButton.isEnabled = true
             }
         }
 
