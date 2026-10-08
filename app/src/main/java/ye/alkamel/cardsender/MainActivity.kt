@@ -20,11 +20,13 @@ import androidx.core.widget.addTextChangedListener
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import androidx.documentfile.provider.DocumentFile
 import java.util.concurrent.TimeUnit
 
 class MainActivity : Activity() {
     private val requestCode = 700
     private val restoreRequestCode = 701
+    private val backupFolderRequestCode = 702
     private lateinit var content: LinearLayout
     private var currentScreen = "dashboard"
 
@@ -46,6 +48,23 @@ class MainActivity : Activity() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == backupFolderRequestCode && resultCode == RESULT_OK) {
+            val uri = data?.data ?: return
+            try {
+                contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+                getSharedPreferences("settings", MODE_PRIVATE).edit()
+                    .putString("backup_tree_uri", uri.toString()).apply()
+                Toast.makeText(this, "تم تحديد مسار النسخ الاحتياطية بنجاح", Toast.LENGTH_LONG).show()
+                showBackup()
+            } catch (e: Exception) {
+                Toast.makeText(this, "تعذر حفظ صلاحية المسار المحدد", Toast.LENGTH_LONG).show()
+            }
+            return
+        }
+
         if (requestCode == restoreRequestCode && resultCode == RESULT_OK) {
             val uri = data?.data ?: return
             when (val result = BackupManager.restoreBackup(this, uri)) {
@@ -1672,6 +1691,30 @@ class MainActivity : Activity() {
             .getString("last_backup", "لم يتم إنشاء نسخة بعد")
         addText("آخر نسخة احتياطية: " + last)
 
+        val settings = getSharedPreferences("settings", MODE_PRIVATE)
+        val backupUri = settings.getString("backup_tree_uri", null)
+        val backupFolderName = backupUri?.let {
+            runCatching { DocumentFile.fromTreeUri(this, android.net.Uri.parse(it))?.name }.getOrNull()
+        }
+        addText(
+            if (backupFolderName != null)
+                "مسار النسخ الاحتياطية: " + backupFolderName + "\nسيتم إنشاء نسخة تلقائيًا كل 12 ساعة، واسم كل نسخة يتضمن تاريخ ووقت الإنشاء."
+            else
+                "مسار النسخ الاحتياطية الحالي: التنزيلات/الكامل أونلاين/نسخ احتياطية\nيمكنك تحديد مسار آخر من الزر أدناه."
+        )
+
+        addButton("📁 تحديد مسار النسخ الاحتياطية", true) {
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+                if (android.os.Build.VERSION.SDK_INT >= 26) {
+                    putExtra("android.content.extra.SHOW_ADVANCED", true)
+                }
+            }
+            startActivityForResult(intent, backupFolderRequestCode)
+        }
+
         addButton("💾 إنشاء نسخة احتياطية الآن", true) {
             val name = BackupManager.createBackup(this)
             Toast.makeText(
@@ -1841,7 +1884,14 @@ class MainActivity : Activity() {
             cornerRadius = radius.toFloat()
         }
 
-    private fun setupBackupSchedule(){val request=PeriodicWorkRequestBuilder<BackupWorker>(1,TimeUnit.DAYS).build();WorkManager.getInstance(this).enqueueUniquePeriodicWork("alkamel_daily_backup",ExistingPeriodicWorkPolicy.KEEP,request)}
+    private fun setupBackupSchedule() {
+        val request = PeriodicWorkRequestBuilder<BackupWorker>(12, TimeUnit.HOURS).build()
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "alkamel_12h_backup",
+            ExistingPeriodicWorkPolicy.KEEP,
+            request
+        )
+    }
     private fun requestPermissions(){val needed=mutableListOf(Manifest.permission.RECEIVE_SMS,Manifest.permission.READ_SMS,Manifest.permission.SEND_SMS);if(android.os.Build.VERSION.SDK_INT>=33&&ContextCompat.checkSelfPermission(this,Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)needed.add(Manifest.permission.POST_NOTIFICATIONS);val missing=needed.filter{ContextCompat.checkSelfPermission(this,it)!=PackageManager.PERMISSION_GRANTED};if(missing.isNotEmpty())ActivityCompat.requestPermissions(this,missing.toTypedArray(),requestCode)}
     private fun Int.dp(): Int = (this * resources.displayMetrics.density).toInt()
 }
