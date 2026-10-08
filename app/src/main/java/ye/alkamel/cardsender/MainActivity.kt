@@ -841,7 +841,7 @@ class MainActivity : Activity() {
             }
         }
 
-        renderCards = {
+        renderCards = renderCardsLabel@{
             cardsContainer.removeAllViews()
             val amount = currentAmount()
             val sim = currentSim()
@@ -863,7 +863,7 @@ class MainActivity : Activity() {
                     setPadding(0, 8, 0, 10)
                 })
                 rebuildActions()
-                return@renderCards
+                return@renderCardsLabel
             }
 
             if (editMode) {
