@@ -13,7 +13,8 @@ data class Operation(
     val amount: Int,
     val phone: String,
     val card: String,
-    val error: String
+    val error: String,
+    val queueId: String = ""
 )
 
 object OperationLog {
@@ -21,10 +22,10 @@ object OperationLog {
     private fun file(context: Context): File = File(context.filesDir, FILE_NAME)
 
     @Synchronized
-    fun start(context: Context, amount: Int, phone: String, card: String): String {
+    fun start(context: Context, amount: Int, phone: String, card: String, queueId: String = ""): String {
         val id = System.currentTimeMillis().toString() + "-" + System.nanoTime().toString().takeLast(6)
         val time = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
-        append(context, "${id}|${time}|PROCESSING|${amount}|${clean(phone)}|${clean(card)}|")
+        append(context, "${id}|${time}|PROCESSING|${amount}|${clean(phone)}|${clean(card)}||${clean(queueId)}")
         return id
     }
 
@@ -48,6 +49,10 @@ object OperationLog {
     fun pending(context: Context): List<Operation> =
         read(context).filter { it.status == "PROCESSING" }.asReversed()
 
+    @Synchronized
+    fun pendingForQueue(context: Context, queueId: String): Operation? =
+        read(context).lastOrNull { it.status == "PROCESSING" && it.queueId == queueId }
+
     fun backupFile(context: Context): File = file(context)
 
     private fun append(context: Context, line: String) {
@@ -60,11 +65,11 @@ object OperationLog {
         val f = file(context)
         if (!f.exists()) return emptyList()
         return f.readLines().mapNotNull { line ->
-            val p = line.split("|", limit = 7)
+            val p = line.split("|", limit = 8)
             if (p.size < 7) null else Operation(
                 p[0], p[1], p[2],
                 p[3].toIntOrNull() ?: return@mapNotNull null,
-                p[4], p[5], p[6]
+                p[4], p[5], p[6], p.getOrNull(7).orEmpty()
             )
         }
     }
@@ -72,7 +77,7 @@ object OperationLog {
     private fun write(context: Context, rows: List<Operation>) {
         val f = file(context)
         f.writeText(rows.joinToString("\n") {
-            "${it.id}|${it.time}|${it.status}|${it.amount}|${clean(it.phone)}|${clean(it.card)}|${clean(it.error)}"
+            "${it.id}|${it.time}|${it.status}|${it.amount}|${clean(it.phone)}|${clean(it.card)}|${clean(it.error)}|${clean(it.queueId)}"
         } + if (rows.isNotEmpty()) "\n" else "")
     }
 
