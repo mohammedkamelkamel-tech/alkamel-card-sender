@@ -27,7 +27,7 @@ object PendingQueue {
         val rows=read(context)
         // Never automatically replay a sale interrupted while sending. It may already
         // have reached the subscriber; stop at that row until an operator reviews it.
-        if(rows.firstOrNull()?.state=="PROCESSING") return null
+        if(rows.any{it.state=="PROCESSING"}) return null
         if(servicesEnabled) rows.firstOrNull{it.state=="QUEUED"||it.state=="RETRYABLE"}
         else rows.firstOrNull{it.allowed&&(it.state=="QUEUED"||it.state=="RETRYABLE")}
     }
