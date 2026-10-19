@@ -415,7 +415,8 @@ class MainActivity : Activity() {
                                         CardStore.returnCard(this@MainActivity, interrupted.amount, interrupted.card, item.sim)
                                         OperationLog.finish(this@MainActivity, interrupted.id, false, "أُعيد الكرت للمخزون بعد تأكيد المشغّل أن الرسالة لم تُرسل")
                                     } else {
-                                        Toast.makeText(this@MainActivity, "لم يُعثر على سجل الكرت السابق؛ راجع المخزون يدويًا قبل إعادة المحاولة.", Toast.LENGTH_LONG).show()
+                                        Toast.makeText(this@MainActivity, "لم يُعثر على سجل الكرت السابق؛ أوقفت إعادة المحاولة لحماية المخزون. راجع المخزون وسجل الرسائل يدويًا أولًا.", Toast.LENGTH_LONG).show()
+                                        return@setPositiveButton
                                     }
                                     if(PendingQueue.retryAfterReview(this@MainActivity,item.id)) {
                                         CardQueueProcessor.process(this@MainActivity)
