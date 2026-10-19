@@ -581,7 +581,7 @@ class MainActivity : Activity() {
         content.removeAllViews()
         addBackButton()
         addTitle("تصحيح فئة الكروت")
-        addText("إذا أضفت كروت لفئة بالخطأ، يمكنك نقلها إلى الفئة الصحيحة بدون حذفها. مثال: كروت 250 أضيفت بالخطأ إلى فئة 100، يمكنك نقلها إلى فئة 250.")
+        addText("اختر الفئة الخاطئة ثم ستظهر أرقام الكروت الموجودة فعليًا في المخزون. ضع علامة على الكروت التي تريد نقلها فقط، ثم اختر الفئة الصحيحة.")
 
         val categories = CardStore.categories(this)
         if (categories.size < 2) {
@@ -589,15 +589,17 @@ class MainActivity : Activity() {
             return
         }
 
+        fun categoryLabel(amount: Int) = "$amount ريال — ${CardStore.count(this, amount)} كرت متبقي"
+
         val fromSpinner = Spinner(this).apply {
             setBackgroundColor(Color.WHITE)
             adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item,
-                categories.map { it.toString() + " ريال — " + CardStore.count(this@MainActivity, it) + " كرت" })
+                categories.map { categoryLabel(it) })
         }
         val toSpinner = Spinner(this).apply {
             setBackgroundColor(Color.WHITE)
             adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item,
-                categories.map { it.toString() + " ريال — " + CardStore.count(this@MainActivity, it) + " كرت" })
+                categories.map { categoryLabel(it) })
         }
 
         addText("الفئة الخاطئة (من):")
@@ -605,16 +607,78 @@ class MainActivity : Activity() {
         addText("الفئة الصحيحة (إلى):")
         content.addView(toSpinner)
 
-        val input = EditText(this).apply {
-            hint = "للنقل المحدد: الصق أرقام الكروت هنا، كل كرت في سطر"
-            setTextColor(Color.rgb(25,25,25))
-            setHintTextColor(Color.rgb(110,110,110))
-            textSize = 17f
-            minLines = 8
-            gravity = Gravity.TOP or Gravity.RIGHT
-            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+        val selectionBar = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
         }
-        content.addView(input)
+        val countText = TextView(this).apply {
+            text = "حدد الكروت المراد نقلها"
+            textSize = 15f
+            setTextColor(Color.rgb(45, 65, 80))
+        }
+        selectionBar.addView(countText, LinearLayout.LayoutParams(0, -2, 1f))
+        val selectAll = Button(this).apply { text = "تحديد الكل" }
+        selectionBar.addView(selectAll)
+        content.addView(selectionBar)
+
+        val cardsList = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(8.dp(), 4.dp(), 8.dp(), 4.dp())
+        }
+        content.addView(cardsList, LinearLayout.LayoutParams(-1, -2))
+
+        val selectedCards = linkedSetOf<String>()
+        var visibleCards: List<String> = emptyList()
+
+        fun renderCards() {
+            val from = categories[fromSpinner.selectedItemPosition]
+            visibleCards = CardStore.cards(this, from)
+            selectedCards.retainAll(visibleCards.toSet())
+            cardsList.removeAllViews()
+            countText.text = "الكروت المتبقية: ${visibleCards.size} — المحدد: ${selectedCards.size}"
+            if (visibleCards.isEmpty()) {
+                cardsList.addView(TextView(this).apply {
+                    text = "لا توجد كروت متبقية في فئة $from ريال."
+                    textSize = 16f
+                    setPadding(8.dp(), 12.dp(), 8.dp(), 12.dp())
+                    setTextColor(Color.DKGRAY)
+                })
+            } else {
+                visibleCards.forEach { card ->
+                    val check = CheckBox(this).apply {
+                        text = card
+                        textSize = 17f
+                        isChecked = selectedCards.contains(card)
+                        setTextColor(Color.rgb(30, 45, 60))
+                        setPadding(8.dp(), 5.dp(), 8.dp(), 5.dp())
+                        setOnCheckedChangeListener { _, checked ->
+                            if (checked) selectedCards.add(card) else selectedCards.remove(card)
+                            countText.text = "الكروت المتبقية: ${visibleCards.size} — المحدد: ${selectedCards.size}"
+                            selectAll.text = if (selectedCards.size == visibleCards.size && visibleCards.isNotEmpty()) "إلغاء التحديد" else "تحديد الكل"
+                        }
+                    }
+                    cardsList.addView(check)
+                    cardsList.addView(View(this).apply {
+                        setBackgroundColor(Color.rgb(225, 230, 235))
+                    }, LinearLayout.LayoutParams(-1, 1))
+                }
+            }
+            selectAll.text = if (selectedCards.size == visibleCards.size && visibleCards.isNotEmpty()) "إلغاء التحديد" else "تحديد الكل"
+        }
+
+        selectAll.setOnClickListener {
+            if (visibleCards.isNotEmpty() && selectedCards.size == visibleCards.size) selectedCards.clear()
+            else selectedCards.addAll(visibleCards)
+            renderCards()
+        }
+        fromSpinner.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
+                selectedCards.clear()
+                renderCards()
+            }
+        }
+        renderCards()
 
         addButton("نقل الكروت المحددة") {
             val from = categories[fromSpinner.selectedItemPosition]
@@ -623,16 +687,16 @@ class MainActivity : Activity() {
                 Toast.makeText(this, "اختر فئتين مختلفتين", Toast.LENGTH_LONG).show()
                 return@addButton
             }
-            val moved = CardStore.moveCards(this, from, to, input.text.toString())
-            Toast.makeText(
-                this,
-                if (moved > 0) "تم نقل " + moved + " كرت من " + from + " إلى " + to + " ريال" else "لم يتم نقل أي كرت. تأكد أن الأرقام موجودة في الفئة " + from,
-                Toast.LENGTH_LONG
-            ).show()
-            if (moved > 0) {
-                input.setText("")
-                showMoveCards()
+            if (selectedCards.isEmpty()) {
+                Toast.makeText(this, "حدد كرتًا واحدًا على الأقل من القائمة", Toast.LENGTH_LONG).show()
+                return@addButton
             }
+            val moved = CardStore.moveCards(this, from, to, selectedCards.joinToString("\n"))
+            Toast.makeText(this,
+                if (moved > 0) "تم نقل $moved كرت من $from إلى $to ريال"
+                else "لم يتم نقل أي كرت. حدّث القائمة وتأكد من وجود الكروت في الفئة المحددة.",
+                Toast.LENGTH_LONG).show()
+            if (moved > 0) showMoveCards()
         }
 
         addButton("نقل جميع كروت الفئة") {
@@ -642,27 +706,24 @@ class MainActivity : Activity() {
                 Toast.makeText(this, "اختر فئتين مختلفتين", Toast.LENGTH_LONG).show()
                 return@addButton
             }
-
-            val available = CardStore.count(this, from)
-            if (available <= 0) {
-                Toast.makeText(this, "لا توجد كروت متبقية في فئة " + from + " ريال", Toast.LENGTH_LONG).show()
+            val cards = CardStore.cards(this, from)
+            if (cards.isEmpty()) {
+                Toast.makeText(this, "لا توجد كروت متبقية في فئة $from ريال", Toast.LENGTH_LONG).show()
                 return@addButton
             }
-
             android.app.AlertDialog.Builder(this)
                 .setTitle("تأكيد نقل الكروت")
-                .setMessage("سيتم نقل جميع الكروت المتبقية من فئة " + from + " ريال إلى فئة " + to + " ريال.\n\nعدد الكروت: " + available + "\n\nاستخدم هذا الخيار فقط إذا كنت متأكدًا أن الكروت أضيفت للفئة الخطأ.")
+                .setMessage("سيتم نقل جميع الكروت المتبقية من فئة $from ريال إلى فئة $to ريال.\n\nعدد الكروت: ${cards.size}\n\nهل تريد المتابعة؟")
                 .setNegativeButton("إلغاء", null)
                 .setPositiveButton("نقل الكل") { _, _ ->
-                    val cards = CardStore.cards(this, from)
                     val moved = CardStore.moveCards(this, from, to, cards.joinToString("\n"))
-                    Toast.makeText(this, "تم نقل " + moved + " كرت من " + from + " إلى " + to + " ريال", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "تم نقل $moved كرت من $from إلى $to ريال", Toast.LENGTH_LONG).show()
                     showMoveCards()
                 }
                 .show()
         }
 
-        addText("ملاحظة: الكروت التي تم بيعها لا تظهر في المخزون، والتصحيح يخص الكروت المتبقية فقط.")
+        addText("ملاحظة: تظهر هنا الكروت المتبقية في المخزون فقط؛ الكروت التي تم بيعها لا تظهر.")
     }
 
     private fun showSimInventory() {
