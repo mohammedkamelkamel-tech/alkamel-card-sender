@@ -61,7 +61,7 @@ object PendingQueue {
     private fun read(context:Context):List<PendingSale>{
         val f=file(context);if(!f.exists())return emptyList()
         return f.readLines().mapNotNull{line->
-            val p=line.split("|",limit=9);if(p.size<8)null else PendingSale(p[0],p[1],p[2],p[3].toIntOrNull()?:return@mapNotNull null,p[4],p[5].toIntOrNull()?:1,p[6].toIntOrNull()?:return@mapNotNull null,p[7],p.getOrNull(8)?.toBoolean()?:false)
+            val p=line.split("|",limit=10);if(p.size<8)null else PendingSale(p[0],p[1],p[2],p[3].toIntOrNull()?:return@mapNotNull null,p[4],p[5].toIntOrNull()?:1,p[6].toIntOrNull()?:return@mapNotNull null,p[7],p.getOrNull(8)?.toBoolean()?:false,p.getOrNull(9)?: "QUEUED")
         }
     }
     private fun write(context:Context,rows:List<PendingSale>){
