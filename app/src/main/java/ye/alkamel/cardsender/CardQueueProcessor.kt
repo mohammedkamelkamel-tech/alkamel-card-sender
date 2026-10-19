@@ -21,7 +21,7 @@ object CardQueueProcessor {
             if(!PendingQueue.markProcessing(context,pending.id)) return
             val card=CardStore.takeFirstCard(context,pending.amount,pending.sim)
             if(card==null){PendingQueue.markRetryable(context,pending.id,"لا يوجد كرت متوفر في مخزون فئة "+pending.amount+" ريال");return}
-            val operationId=OperationLog.start(context,pending.amount,pending.phone,card)
+            val operationId=OperationLog.start(context,pending.amount,pending.phone,card,pending.id)
             val result=CardSmsSender.send(context,pending.phone,card,pending.amount,pending.subscriptionId)
             if(result.success){
                 CardStore.recordSale(context,pending.amount,pending.phone,card,pending.sim);SmsDedup.markProcessed(context,pending.fingerprint);OperationLog.finish(context,operationId,true);PendingQueue.remove(context,pending.id)
