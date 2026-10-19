@@ -8,7 +8,7 @@ import java.util.Locale
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
-data class PendingSale(val id:String,val time:String,val fingerprint:String,val amount:Int,val phone:String,val sim:Int,val subscriptionId:Int,val error:String="",val allowed:Boolean=false)
+data class PendingSale(val id:String,val time:String,val fingerprint:String,val amount:Int,val phone:String,val sim:Int,val subscriptionId:Int,val error:String="",val allowed:Boolean=false,val state:String="QUEUED")
 
 object PendingQueue {
     private const val FILE_NAME="pending_sales.queue"
@@ -23,7 +23,35 @@ object PendingQueue {
     fun peek(context:Context):PendingSale?=lock.withLock{read(context).firstOrNull()}
     fun remove(context:Context,id:String)=lock.withLock{write(context,read(context).filterNot{it.id==id})}
     fun allow(context:Context,id:String)=lock.withLock{write(context,read(context).map{if(it.id==id)it.copy(allowed=true)else it})}
-    fun nextForProcessing(context:Context,servicesEnabled:Boolean):PendingSale?=lock.withLock{val rows=read(context);if(servicesEnabled)rows.firstOrNull()else rows.firstOrNull{it.allowed}}
+    fun nextForProcessing(context:Context,servicesEnabled:Boolean):PendingSale?=lock.withLock{
+        val rows=read(context)
+        // Never automatically replay a sale interrupted while sending. It may already
+        // have reached the subscriber; stop at that row until an operator reviews it.
+        if(rows.any{it.state=="PROCESSING"}) return null
+        if(servicesEnabled) rows.firstOrNull{it.state=="QUEUED"||it.state=="RETRYABLE"}
+        else rows.firstOrNull{it.allowed&&(it.state=="QUEUED"||it.state=="RETRYABLE")}
+    }
+    fun markProcessing(context:Context,id:String):Boolean=lock.withLock{
+        val rows=read(context)
+        val target=rows.firstOrNull{it.id==id}?:return false
+        if(target.state=="PROCESSING") return false
+        write(context,rows.map{if(it.id==id)it.copy(state="PROCESSING",error="")else it})
+        true
+    }
+    fun markRetryable(context:Context,id:String,error:String=""):Boolean=lock.withLock{
+        val rows=read(context)
+        if(rows.none{it.id==id}) return false
+        val clean=error.replace("|"," ").replace("\\n"," ").replace("\\r"," ")
+        write(context,rows.map{if(it.id==id)it.copy(state="RETRYABLE",error=clean)else it})
+        true
+    }
+    fun retryAfterReview(context:Context,id:String):Boolean=lock.withLock{
+        val rows=read(context)
+        val target=rows.firstOrNull{it.id==id}?:return false
+        if(target.state!="PROCESSING") return false
+        write(context,rows.map{if(it.id==id)it.copy(state="RETRYABLE",error="أعيدت للمحاولة يدويًا بعد مراجعة المشغّل.",allowed=true)else it})
+        true
+    }
     fun setError(context:Context,id:String,error:String)=lock.withLock{
         val clean=error.replace("|"," ").replace("\n"," ").replace("\r"," ")
         write(context,read(context).map{if(it.id==id)it.copy(error=clean)else it})
@@ -33,7 +61,7 @@ object PendingQueue {
     private fun read(context:Context):List<PendingSale>{
         val f=file(context);if(!f.exists())return emptyList()
         return f.readLines().mapNotNull{line->
-            val p=line.split("|",limit=9);if(p.size<8)null else PendingSale(p[0],p[1],p[2],p[3].toIntOrNull()?:return@mapNotNull null,p[4],p[5].toIntOrNull()?:1,p[6].toIntOrNull()?:return@mapNotNull null,p[7],p.getOrNull(8)?.toBoolean()?:false)
+            val p=line.split("|",limit=10);if(p.size<8)null else PendingSale(p[0],p[1],p[2],p[3].toIntOrNull()?:return@mapNotNull null,p[4],p[5].toIntOrNull()?:1,p[6].toIntOrNull()?:return@mapNotNull null,p[7],p.getOrNull(8)?.toBoolean()?:false,p.getOrNull(9)?: "QUEUED")
         }
     }
     private fun write(context:Context,rows:List<PendingSale>){
@@ -52,5 +80,5 @@ object PendingQueue {
             temp.delete()
         }
     }
-    private fun serialize(row:PendingSale)=listOf(row.id,row.time,row.fingerprint,row.amount,row.phone,row.sim,row.subscriptionId,row.error,row.allowed).joinToString("|")
+    private fun serialize(row:PendingSale)=listOf(row.id,row.time,row.fingerprint,row.amount,row.phone,row.sim,row.subscriptionId,row.error,row.allowed,row.state).joinToString("|")
 }

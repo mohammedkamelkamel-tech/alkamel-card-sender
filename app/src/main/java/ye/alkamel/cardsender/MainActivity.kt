@@ -390,7 +390,8 @@ class MainActivity : Activity() {
                 }
                 card.addView(TextView(this).apply {
                     text = (index + 1).toString() + ". " + item.amount + " ريال → " + item.phone +
-                        " • SIM" + item.sim + (if (item.allowed) "\n✅ مسموح بالإرسال" else "") + error
+                        " • SIM" + item.sim + " • " + when(item.state) { "PROCESSING" -> "⚠️ يحتاج مراجعة يدوية"; "RETRYABLE" -> "جاهز لإعادة المحاولة"; else -> if(item.allowed) "مسموح بالإرسال" else "في الانتظار" } + error +
+                        (if(item.state=="PROCESSING") "\nلن تعاد هذه الحوالة تلقائيًا منعًا لصرف كرت ثانٍ. تحقق أولًا هل وصل الكرت للمشترك." else "")
                     textSize = 16f
                     setTextColor(Color.rgb(35, 35, 35))
                 }, LinearLayout.LayoutParams(-1, -2))
@@ -399,12 +400,35 @@ class MainActivity : Activity() {
                     layoutDirection = View.LAYOUT_DIRECTION_RTL
                 }
                 val allowButton = Button(this).apply {
-                    text = if (item.allowed) "سماح ✓" else "سماح"
+                    text = if(item.state=="PROCESSING") "إعادة المحاولة بعد التحقق" else if (item.allowed) "سماح ✓" else "سماح"
                     setOnClickListener {
-                        PendingQueue.allow(this@MainActivity, item.id)
-                        CardQueueProcessor.process(this@MainActivity)
-                        Toast.makeText(this@MainActivity, "تم السماح بمعالجة الحوالة المحددة", Toast.LENGTH_SHORT).show()
-                        showServices()
+                        if(item.state=="PROCESSING") {
+                            android.app.AlertDialog.Builder(this@MainActivity)
+                                .setTitle("⚠️ مراجعة حوالة غير محسومة")
+                                .setMessage("استخدم إعادة المحاولة فقط بعد التأكد من سجل الرسائل أن الكرت السابق لم يُرسل. إذا كان قد أُرسل، فقد يؤدي ذلك إلى إرسال كرت آخر لنفس الحوالة.")
+                                .setNegativeButton("إلغاء", null)
+                                .setPositiveButton("تأكدت، أعد المحاولة") { _, _ ->
+                                    val interrupted = OperationLog.pendingForQueue(this@MainActivity, item.id)
+                                    if(interrupted != null) {
+                                        // The operator explicitly confirmed the SMS was not sent;
+                                        // return the reserved card before retrying the same transaction.
+                                        CardStore.returnCard(this@MainActivity, interrupted.amount, interrupted.card, item.sim)
+                                        OperationLog.finish(this@MainActivity, interrupted.id, false, "أُعيد الكرت للمخزون بعد تأكيد المشغّل أن الرسالة لم تُرسل")
+                                    } else {
+                                        Toast.makeText(this@MainActivity, "لم يُعثر على سجل الكرت السابق؛ أوقفت إعادة المحاولة لحماية المخزون. راجع المخزون وسجل الرسائل يدويًا أولًا.", Toast.LENGTH_LONG).show()
+                                        return@setPositiveButton
+                                    }
+                                    if(PendingQueue.retryAfterReview(this@MainActivity,item.id)) {
+                                        CardQueueProcessor.process(this@MainActivity)
+                                        showServices()
+                                    }
+                                }.show()
+                        } else {
+                            PendingQueue.allow(this@MainActivity, item.id)
+                            CardQueueProcessor.process(this@MainActivity)
+                            Toast.makeText(this@MainActivity, "تم السماح بمعالجة الحوالة المحددة", Toast.LENGTH_SHORT).show()
+                            showServices()
+                        }
                     }
                 }
                 val ignoreButton = Button(this).apply {
