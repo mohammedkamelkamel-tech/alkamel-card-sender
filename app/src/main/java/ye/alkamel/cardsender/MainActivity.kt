@@ -594,19 +594,21 @@ class MainActivity : Activity() {
         addSectionTitle("الوصول السريع")
         addText("كل أدواتك في مكان واحد، بترتيب واضح وسريع.")
 
+        data class DashboardAction(val icon: String, val label: String, val description: String, val action: () -> Unit)
+
         val actions = listOf(
-            Triple("🌐", "MikroTik", "إدارة ومراقبة الشبكة", { startActivity(Intent(this, MikrotikDashboardActivity::class.java)) }),
-            Triple("➕", "إضافة كروت", "إضافة كروت جديدة للمخزون", { showAddCards() }),
-            Triple("▤", "فئات الكروت", "إدارة الفئات والأسعار", { showCategories() }),
-            Triple("▣", "المخزون الحالي", "الكروت المتبقية لكل فئة", { showStock() }),
-            Triple("🔗", "ربط الأرقام", "إدارة الأرقام البديلة", { showAlternateNumbers() }),
-            Triple("▥", "مخزون الشرائح", "متابعة SIM1 وSIM2", { showSimInventory() }),
-            Triple("◈", "المبيعات والأرباح", "عرض الكروت المباعة", { showSales() }),
-            Triple("▥", "تقارير الشرائح", "مبيعات SIM1 وSIM2", { showSimSales() }),
-            Triple("☷", "سجل العمليات", "مراجعة الإرسال والحركة", { showOperations() }),
-            Triple("♧", "تنبيهات المخزون", "ضبط تنبيه نقص الكروت", { showStockAlertSettings() }),
-            Triple("✉", "خدمات الإرسال", "حالة الخدمة وطابور الإرسال", { showServices() }),
-            Triple("☁", "النسخ الاحتياطي", "إنشاء نسخة أو استعادتها", { showBackup() })
+            DashboardAction("🌐", "MikroTik", "إدارة ومراقبة الشبكة", { startActivity(Intent(this, MikrotikDashboardActivity::class.java)) }),
+            DashboardAction("➕", "إضافة كروت", "إضافة كروت جديدة للمخزون", { showAddCards() }),
+            DashboardAction("▤", "فئات الكروت", "إدارة الفئات والأسعار", { showCategories() }),
+            DashboardAction("▣", "المخزون الحالي", "الكروت المتبقية لكل فئة", { showStock() }),
+            DashboardAction("🔗", "ربط الأرقام", "إدارة الأرقام البديلة", { showAlternateNumbers() }),
+            DashboardAction("▥", "مخزون الشرائح", "متابعة SIM1 وSIM2", { showSimInventory() }),
+            DashboardAction("◈", "المبيعات والأرباح", "عرض الكروت المباعة", { showSales() }),
+            DashboardAction("▥", "تقارير الشرائح", "مبيعات SIM1 وSIM2", { showSimSales() }),
+            DashboardAction("☷", "سجل العمليات", "مراجعة الإرسال والحركة", { showOperations() }),
+            DashboardAction("♧", "تنبيهات المخزون", "ضبط تنبيه نقص الكروت", { showStockAlertSettings() }),
+            DashboardAction("✉", "خدمات الإرسال", "حالة الخدمة وطابور الإرسال", { showServices() }),
+            DashboardAction("☁", "النسخ الاحتياطي", "إنشاء نسخة أو استعادتها", { showBackup() })
         )
 
         actions.chunked(2).forEach { pair ->
