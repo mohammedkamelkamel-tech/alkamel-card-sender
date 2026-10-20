@@ -1,0 +1,26 @@
+name: Validate Flutter UI
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "feature/flutter-skyblue-ui-v1.22.0"
+    paths:
+      - "flutter_ui/**"
+      - ".github/workflows/flutter-ui-check.yml"
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Resolve Flutter packages
+        working-directory: flutter_ui
+        run: flutter pub get
+      - name: Analyze Dart source
+        working-directory: flutter_ui
+        run: flutter analyze
+      - name: Run Flutter tests
+        working-directory: flutter_ui
+        run: flutter test
