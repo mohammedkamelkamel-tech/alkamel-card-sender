@@ -2,5 +2,6 @@
     <style name="Theme.AlKamelCardSender" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowBackground">@drawable/alkamel_splash</item>
     </style>
 </resources>
