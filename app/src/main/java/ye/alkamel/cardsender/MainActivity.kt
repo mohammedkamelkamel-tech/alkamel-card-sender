@@ -260,22 +260,43 @@ class MainActivity : Activity() {
         }
         top.addView(menu, LinearLayout.LayoutParams(48.dp(), 52.dp()))
 
-        val navScroll = HorizontalScrollView(this).apply {
-            setBackgroundColor(Color.WHITE)
-            isHorizontalScrollBarEnabled = false
-            setPadding(8.dp(), 7.dp(), 8.dp(), 7.dp())
-        }
-        val nav = LinearLayout(this).apply {
+        val navBar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             layoutDirection = View.LAYOUT_DIRECTION_RTL
-            gravity = Gravity.CENTER_VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(6.dp(), 7.dp(), 6.dp(), 7.dp())
+            setBackgroundColor(Color.WHITE)
+            elevation = 8.dp().toFloat()
         }
-        nav.addView(navButton("🏠 الرئيسية") { showDashboard() })
-        nav.addView(navButton("📦 المخزون") { showStock() })
-        nav.addView(navButton("✉️ الإرسال") { showServices() })
-        nav.addView(navButton("📊 التقارير") { showSales() })
-        nav.addView(navButton("🌐 الشبكة") { startActivity(Intent(this, MikrotikDashboardActivity::class.java)) })
-        navScroll.addView(nav, LinearLayout.LayoutParams(-2, -1))
+        fun bottomItem(icon: String, label: String, action: () -> Unit) = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            isClickable = true
+            isFocusable = true
+            setPadding(3.dp(), 2.dp(), 3.dp(), 2.dp())
+            addView(TextView(this@MainActivity).apply {
+                text = icon
+                textSize = 21f
+                gravity = Gravity.CENTER
+                setTextColor(Color.rgb(176, 132, 55))
+            }, LinearLayout.LayoutParams(-1, 27.dp()))
+            addView(TextView(this@MainActivity).apply {
+                text = label
+                textSize = 10.5f
+                gravity = Gravity.CENTER
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.rgb(35, 74, 108))
+                maxLines = 1
+            }, LinearLayout.LayoutParams(-1, -2))
+            setOnClickListener { action() }
+        }
+        listOf(
+            bottomItem("⌂", "الرئيسية") { showDashboard() },
+            bottomItem("▣", "المخزون") { showStock() },
+            bottomItem("✉", "الإرسال") { showServices() },
+            bottomItem("▥", "التقارير") { showSales() },
+            bottomItem("☷", "المزيد") { showNavigationMenu() }
+        ).forEach { navBar.addView(it, LinearLayout.LayoutParams(0, 54.dp(), 1f)) }
 
         val scroll = ScrollView(this)
         content = LinearLayout(this).apply {
@@ -295,8 +316,8 @@ class MainActivity : Activity() {
         }
 
         root.addView(header)
-        root.addView(navScroll, LinearLayout.LayoutParams(-1, 64.dp()))
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+        root.addView(navBar, LinearLayout.LayoutParams(-1, -2))
         root.addView(footer, LinearLayout.LayoutParams(-1, -2))
         setContentView(root)
     }
