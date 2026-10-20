@@ -571,53 +571,73 @@ class MainActivity : Activity() {
 
     private fun addDashboardActionGrid() {
         addSectionTitle("الوصول السريع")
-        addText("اختر القسم المطلوب من بطاقات واضحة وسريعة.")
+        addText("كل أدواتك في مكان واحد، بترتيب واضح وسريع.")
+
         val actions = listOf(
-            Triple("🌐 MikroTik", "إدارة ومراقبة الشبكة", { startActivity(Intent(this, MikrotikDashboardActivity::class.java)) }),
-            Triple("➕ إضافة كروت", "إدخال كروت جديدة للمخزون", { showAddCards() }),
-            Triple("💳 فئات الكروت", "إدارة الفئات والأسعار", { showCategories() }),
-            Triple("📦 المخزون", "الكروت المتبقية لكل فئة", { showStock() }),
-            Triple("🔗 ربط الأرقام", "إدارة الأرقام البديلة", { showAlternateNumbers() }),
-            Triple("📱 مخزون الشرائح", "متابعة SIM1 وSIM2", { showSimInventory() }),
-            Triple("💰 المبيعات", "عرض الكروت المباعة", { showSales() }),
-            Triple("📊 تقارير الشرائح", "مبيعات SIM1 وSIM2", { showSimSales() }),
-            Triple("📋 سجل العمليات", "مراجعة الإرسال والحركة", { showOperations() }),
-            Triple("🔔 تنبيهات المخزون", "ضبط تنبيه نقص الكروت", { showStockAlertSettings() }),
-            Triple("✉️ خدمات الإرسال", "حالة الخدمة وطابور الإرسال", { showServices() }),
-            Triple("💾 النسخ الاحتياطي", "إنشاء نسخة أو استعادتها", { showBackup() })
+            Triple("🌐", "MikroTik", "إدارة ومراقبة الشبكة", { startActivity(Intent(this, MikrotikDashboardActivity::class.java)) }),
+            Triple("➕", "إضافة كروت", "إضافة كروت جديدة للمخزون", { showAddCards() }),
+            Triple("▤", "فئات الكروت", "إدارة الفئات والأسعار", { showCategories() }),
+            Triple("▣", "المخزون الحالي", "الكروت المتبقية لكل فئة", { showStock() }),
+            Triple("🔗", "ربط الأرقام", "إدارة الأرقام البديلة", { showAlternateNumbers() }),
+            Triple("▥", "مخزون الشرائح", "متابعة SIM1 وSIM2", { showSimInventory() }),
+            Triple("◈", "المبيعات والأرباح", "عرض الكروت المباعة", { showSales() }),
+            Triple("▥", "تقارير الشرائح", "مبيعات SIM1 وSIM2", { showSimSales() }),
+            Triple("☷", "سجل العمليات", "مراجعة الإرسال والحركة", { showOperations() }),
+            Triple("♧", "تنبيهات المخزون", "ضبط تنبيه نقص الكروت", { showStockAlertSettings() }),
+            Triple("✉", "خدمات الإرسال", "حالة الخدمة وطابور الإرسال", { showServices() }),
+            Triple("☁", "النسخ الاحتياطي", "إنشاء نسخة أو استعادتها", { showBackup() })
         )
+
         actions.chunked(2).forEach { pair ->
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
                 layoutDirection = View.LAYOUT_DIRECTION_RTL
                 gravity = Gravity.TOP
             }
-            pair.forEach { (label, description, action) ->
+            pair.forEach { (icon, label, description, action) ->
                 val tile = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL
-                    gravity = Gravity.RIGHT
-                    setPadding(14.dp(), 14.dp(), 14.dp(), 14.dp())
-                    background = roundedBackground(Color.WHITE, Color.rgb(218, 228, 237), 1.dp())
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                    setPadding(11.dp(), 12.dp(), 11.dp(), 12.dp())
+                    background = roundedBackground(Color.WHITE, Color.rgb(211, 228, 242), 1.dp())
+                    elevation = 3.dp().toFloat()
                     isClickable = true
                     isFocusable = true
                     setOnClickListener { action() }
                 }
-                tile.addView(TextView(this).apply {
+                val iconBox = TextView(this).apply {
+                    text = icon
+                    textSize = 25f
+                    gravity = Gravity.CENTER
+                    setTextColor(Color.rgb(174, 124, 34))
+                    background = roundedBackground(Color.rgb(255, 248, 232), Color.rgb(245, 231, 199), 1.dp())
+                }
+                tile.addView(iconBox, LinearLayout.LayoutParams(44.dp(), 48.dp()).apply {
+                    marginStart = 9.dp()
+                })
+                val labels = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    gravity = Gravity.CENTER_VERTICAL
+                }
+                labels.addView(TextView(this).apply {
                     text = label
-                    textSize = 15f
+                    textSize = 14.5f
                     typeface = Typeface.DEFAULT_BOLD
-                    setTextColor(Color.rgb(24, 78, 117))
+                    setTextColor(Color.rgb(18, 57, 96))
                     gravity = Gravity.RIGHT
+                    maxLines = 2
                 })
-                tile.addView(TextView(this).apply {
+                labels.addView(TextView(this).apply {
                     text = description
-                    textSize = 12.5f
-                    setTextColor(Color.rgb(100, 110, 120))
+                    textSize = 11.5f
+                    setTextColor(Color.rgb(105, 124, 145))
                     gravity = Gravity.RIGHT
-                    setPadding(0, 6.dp(), 0, 0)
+                    setPadding(0, 4.dp(), 0, 0)
+                    maxLines = 2
                 })
-                row.addView(tile, LinearLayout.LayoutParams(0, 86.dp(), 1f).apply {
-                    setMargins(4.dp(), 0, 4.dp(), 8.dp())
+                tile.addView(labels, LinearLayout.LayoutParams(0, -2, 1f))
+                row.addView(tile, LinearLayout.LayoutParams(0, 94.dp(), 1f).apply {
+                    setMargins(4.dp(), 0, 4.dp(), 9.dp())
                 })
             }
             if (pair.size == 1) row.addView(View(this), LinearLayout.LayoutParams(0, 1.dp(), 1f))
