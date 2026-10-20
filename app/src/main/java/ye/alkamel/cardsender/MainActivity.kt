@@ -195,12 +195,12 @@ class MainActivity : Activity() {
     }
 
     private fun buildUi() {
-        window.statusBarColor = Color.rgb(34, 43, 60)
-        window.navigationBarColor = Color.rgb(24, 31, 45)
+        window.statusBarColor = Color.rgb(119, 201, 245)
+        window.navigationBarColor = Color.WHITE
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.rgb(49, 59, 78))
+            setBackgroundColor(Color.rgb(240, 249, 255))
             layoutDirection = View.LAYOUT_DIRECTION_RTL
         }
 
@@ -209,8 +209,8 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(20.dp(), 18.dp(), 20.dp(), 20.dp())
             background = gradientBackground(
-                Color.rgb(69, 81, 103),
-                Color.rgb(43, 53, 72),
+                Color.rgb(119, 201, 245),
+                Color.rgb(189, 232, 255),
                 0
             )
         }
@@ -247,7 +247,7 @@ class MainActivity : Activity() {
         titleBox.addView(TextView(this).apply {
             text = "إدارة الكروت والمبيعات والإرسال التلقائي"
             textSize = 13f
-            setTextColor(Color.rgb(222, 239, 252))
+            setTextColor(Color.rgb(20, 84, 119))
             setPadding(0, 3.dp(), 0, 0)
         })
         top.addView(titleBox, LinearLayout.LayoutParams(0, -2, 1f))
@@ -256,7 +256,7 @@ class MainActivity : Activity() {
             text = "⋮"
             textSize = 30f
             gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
+            setTextColor(Color.rgb(23, 59, 85))
             setPadding(8.dp(), 0, 8.dp(), 0)
             contentDescription = "القائمة الرئيسية"
             setOnClickListener { showNavigationMenu() }
@@ -268,7 +268,7 @@ class MainActivity : Activity() {
             layoutDirection = View.LAYOUT_DIRECTION_RTL
             gravity = Gravity.CENTER
             setPadding(6.dp(), 7.dp(), 6.dp(), 7.dp())
-            setBackgroundColor(Color.rgb(31, 39, 55))
+            setBackgroundColor(Color.WHITE)
             elevation = 8.dp().toFloat()
         }
         fun bottomItem(icon: String, label: String, action: () -> Unit) = LinearLayout(this).apply {
@@ -288,7 +288,7 @@ class MainActivity : Activity() {
                 textSize = 10.5f
                 gravity = Gravity.CENTER
                 typeface = Typeface.DEFAULT_BOLD
-                setTextColor(Color.rgb(228, 232, 240))
+                setTextColor(Color.rgb(23, 59, 85))
                 maxLines = 1
             }, LinearLayout.LayoutParams(-1, -2))
             setOnClickListener { action() }
@@ -313,9 +313,9 @@ class MainActivity : Activity() {
             text = "الكامل أونلاين  •  حقوق محمد كامل - 772072056"
             textSize = 12f
             gravity = Gravity.CENTER
-            setTextColor(Color.rgb(184, 192, 207))
+            setTextColor(Color.rgb(80, 119, 143))
             setPadding(8.dp(), 11.dp(), 8.dp(), 11.dp())
-            setBackgroundColor(Color.rgb(35, 43, 59))
+            setBackgroundColor(Color.rgb(240, 249, 255))
         }
 
         root.addView(header)
