@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="#EAF7FF" />
+    <item android:drawable="@color/alkamel_splash_background" />
     <item
         android:drawable="@drawable/alkamel_logo"
         android:gravity="center"
