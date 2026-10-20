@@ -81,10 +81,11 @@ class MikrotikDashboardActivity : Activity() {
                 val identity = api.command("/system/identity/print").firstOrNull()?.attributes.orEmpty()
                 val resource = api.command("/system/resource/print").firstOrNull()?.attributes.orEmpty()
                 val interfaces = api.command("/interface/print")
-                val pppActive = safeQuery(api, "/ppp/active/print")
-                val hsActive = safeQuery(api, "/ip/hotspot/active/print")
-                val pppSecrets = safeQuery(api, "/ppp/secret/print")
-                val hsUsers = safeQuery(api, "/ip/hotspot/user/print")
+                val queryWarnings = mutableListOf<String>()
+                val pppActive = safeQuery(api, "/ppp/active/print", queryWarnings)
+                val hsActive = safeQuery(api, "/ip/hotspot/active/print", queryWarnings)
+                val pppSecrets = safeQuery(api, "/ppp/secret/print", queryWarnings)
+                val hsUsers = safeQuery(api, "/ip/hotspot/user/print", queryWarnings)
                 connectedConfig = cfg
                 runOnUiThread {
                     resultBox.removeAllViews()
@@ -96,6 +97,13 @@ class MikrotikDashboardActivity : Activity() {
                     resultBox.addView(text("المعالج: " + (resource["cpu-load"] ?: "?") + "% • الذاكرة الحرة: " + memory + " MB", 14, false))
                     resultBox.addView(text("واجهات الشبكة: " + interfaces.size, 14, false))
                     resultBox.addView(text("جلسات PPP: " + pppActive.size + " • جلسات HotSpot: " + hsActive.size, 14, false))
+                    if (queryWarnings.isNotEmpty()) {
+                        resultBox.addView(text(
+                            "تنبيه: تعذرت قراءة بعض القوائم؛ الأعداد أو الحسابات المعروضة قد تكون غير مكتملة. " +
+                                queryWarnings.distinct().joinToString(" • "),
+                            14, true, Color.rgb(175, 95, 20)
+                        ))
+                    }
                     resultBox.addView(button("تحديث البيانات", false) { connectAndLoad() })
                     resultBox.addView(text("المشتركون المتصلون", 20, true))
                     addActiveUsers(pppActive, "PPP")
@@ -116,8 +124,16 @@ class MikrotikDashboardActivity : Activity() {
         }
     }
 
-    private fun safeQuery(api: MikrotikApiClient, path: String): List<Map<String, String>> =
-        try { api.command(path).map { it.attributes } } catch (_: Exception) { emptyList() }
+    private fun safeQuery(
+        api: MikrotikApiClient,
+        path: String,
+        warnings: MutableList<String>
+    ): List<Map<String, String>> = try {
+        api.command(path).map { it.attributes }
+    } catch (e: Exception) {
+        warnings.add(path.substringAfterLast("/") + ": " + (e.message ?: "تعذرت القراءة"))
+        emptyList()
+    }
 
     private fun addActiveUsers(rows: List<Map<String, String>>, kind: String) {
         if (rows.isEmpty()) {
