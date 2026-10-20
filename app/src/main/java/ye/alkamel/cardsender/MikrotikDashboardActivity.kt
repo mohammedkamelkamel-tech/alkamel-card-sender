@@ -25,7 +25,8 @@ class MikrotikDashboardActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         title = "إدارة MikroTik"
-        window.statusBarColor = Color.rgb(14, 67, 111)
+        window.statusBarColor = Color.rgb(41, 157, 235)
+        window.navigationBarColor = Color.rgb(245, 250, 252)
         buildScreen()
     }
 
@@ -34,25 +35,48 @@ class MikrotikDashboardActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             layoutDirection = View.LAYOUT_DIRECTION_RTL
             setPadding(dp(16), dp(12), dp(16), dp(20))
-            setBackgroundColor(Color.rgb(246, 248, 252))
+            setBackgroundColor(Color.rgb(245, 250, 252))
         }
         val scroll = ScrollView(this)
         scroll.addView(root)
         setContentView(scroll)
-        root.addView(text("لوحة تحكم MikroTik", 24, true))
-        root.addView(text("اتصال محلي مباشر بالراوتر. لا تُحفظ كلمة المرور على الهاتف.", 14, false))
-        hostInput = field("عنوان الراوتر، مثل 192.168.88.1")
-        portInput = field("منفذ API-SSL: 8729")
-        portInput.setText("8729")
-        userInput = field("اسم مستخدم MikroTik")
-        passInput = field("كلمة مرور MikroTik")
-        passInput.inputType = 129
+        val header = panel().apply {
+            setBackgroundColor(Color.rgb(32, 44, 58))
+            addView(text("MikroTik Monitor", 22, true, Color.WHITE))
+            addView(text("إدارة الراوتر والمشتركين من مكان واحد", 14, false, Color.rgb(190, 224, 245)))
+        }
+        root.addView(header)
+        root.addView(text("بيانات الاتصال", 20, true, Color.rgb(41, 157, 235)))
+        root.addView(text("أدخل بيانات الراوتر. لن تُحفظ كلمة المرور على الهاتف.", 14, false))
+        hostInput = field("عنوان IP أو اسم المضيف (مثال 192.168.88.1)").apply {
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_NEXT
+        }
+        portInput = field("المنفذ").apply {
+            setText("8729")
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_NEXT
+        }
+        userInput = field("اسم مستخدم MikroTik").apply {
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_NEXT
+        }
+        passInput = field("كلمة مرور MikroTik").apply {
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_DONE
+        }
+        root.addView(hostInput)
+        root.addView(portInput)
+        root.addView(userInput)
+        root.addView(passInput)
         tlsSwitch = Switch(this).apply {
-            text = "استخدام API-SSL المشفّر (موصى به)"
+            text = "استخدام API-SSL المشفّر"
             isChecked = true
-            setTextColor(Color.DKGRAY)
+            setTextColor(Color.rgb(32, 44, 58))
+            textSize = 15f
         }
         root.addView(tlsSwitch)
+        root.addView(text("مع TLS استخدم المنفذ 8729 عادةً، ومن دون TLS غالبًا 8728.", 12, false, Color.GRAY))
         root.addView(button("اتصال وفحص الراوتر", true) { connectAndLoad() })
         root.addView(button("مسح كلمة المرور", false) { passInput.setText("") })
         resultBox = LinearLayout(this).apply {
@@ -248,6 +272,8 @@ class MikrotikDashboardActivity : Activity() {
         orientation = LinearLayout.VERTICAL
         setPadding(dp(12), dp(10), dp(12), dp(10))
         setBackgroundColor(Color.WHITE)
+        background = android.graphics.drawable.GradientDrawable().apply { setColor(Color.WHITE); cornerRadius = dp(14).toFloat(); setStroke(dp(1), Color.rgb(220, 235, 245)) }
+        layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) }
     }
     private fun field(hintText: String) = EditText(this).apply {
         hint = hintText
@@ -258,17 +284,21 @@ class MikrotikDashboardActivity : Activity() {
         setPadding(dp(10), dp(6), dp(10), dp(6))
         background = android.graphics.drawable.GradientDrawable().apply {
             setColor(Color.WHITE)
-            setStroke(dp(1), Color.rgb(210, 220, 230))
+            setStroke(dp(1), Color.rgb(185, 220, 242))
             cornerRadius = dp(8).toFloat()
         }
-        layoutParams = LinearLayout.LayoutParams(-1, dp(50)).apply { bottomMargin = dp(8) }
+        isFocusable = true
+        isFocusableInTouchMode = true
+        showSoftInputOnFocus = true
+        layoutParams = LinearLayout.LayoutParams(-1, dp(54)).apply { bottomMargin = dp(10) }
     }
     private fun button(label: String, primary: Boolean, action: () -> Unit) = Button(this).apply {
         text = label
         isAllCaps = false
         textSize = 14f
-        setTextColor(if (primary) Color.WHITE else Color.rgb(20, 83, 130))
-        setBackgroundColor(if (primary) Color.rgb(20, 92, 148) else Color.rgb(230, 239, 247))
+        setTextColor(if (primary) Color.WHITE else Color.rgb(32, 105, 155))
+        setBackgroundColor(if (primary) Color.rgb(41, 157, 235) else Color.rgb(220, 241, 253))
+        minHeight = dp(50)
         setOnClickListener { action() }
         layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(5); bottomMargin = dp(5) }
     }
