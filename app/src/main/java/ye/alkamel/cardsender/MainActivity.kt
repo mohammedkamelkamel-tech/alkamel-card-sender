@@ -195,12 +195,12 @@ class MainActivity : Activity() {
     }
 
     private fun buildUi() {
-        window.statusBarColor = Color.rgb(14, 67, 111)
-        window.navigationBarColor = Color.rgb(246, 248, 252)
+        window.statusBarColor = Color.rgb(34, 43, 60)
+        window.navigationBarColor = Color.rgb(24, 31, 45)
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.rgb(246, 248, 252))
+            setBackgroundColor(Color.rgb(49, 59, 78))
             layoutDirection = View.LAYOUT_DIRECTION_RTL
         }
 
@@ -209,8 +209,8 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(20.dp(), 18.dp(), 20.dp(), 20.dp())
             background = gradientBackground(
-                Color.rgb(18, 82, 133),
-                Color.rgb(31, 125, 188),
+                Color.rgb(69, 81, 103),
+                Color.rgb(43, 53, 72),
                 0
             )
         }
@@ -226,7 +226,7 @@ class MainActivity : Activity() {
             scaleType = ImageView.ScaleType.CENTER_INSIDE
             // Keep the existing logo visible, but blend it softly into the header.
             background = android.graphics.drawable.ColorDrawable(Color.TRANSPARENT)
-            alpha = 0.58f
+            alpha = 0.72f
             setPadding(2.dp(), 2.dp(), 2.dp(), 2.dp())
             contentDescription = "شعار الكامل أونلاين"
         }
@@ -253,8 +253,8 @@ class MainActivity : Activity() {
         top.addView(titleBox, LinearLayout.LayoutParams(0, -2, 1f))
 
         val menu = TextView(this).apply {
-            text = "☰"
-            textSize = 27f
+            text = "⋮"
+            textSize = 30f
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
             setPadding(8.dp(), 0, 8.dp(), 0)
@@ -268,7 +268,7 @@ class MainActivity : Activity() {
             layoutDirection = View.LAYOUT_DIRECTION_RTL
             gravity = Gravity.CENTER
             setPadding(6.dp(), 7.dp(), 6.dp(), 7.dp())
-            setBackgroundColor(Color.WHITE)
+            setBackgroundColor(Color.rgb(31, 39, 55))
             elevation = 8.dp().toFloat()
         }
         fun bottomItem(icon: String, label: String, action: () -> Unit) = LinearLayout(this).apply {
@@ -288,7 +288,7 @@ class MainActivity : Activity() {
                 textSize = 10.5f
                 gravity = Gravity.CENTER
                 typeface = Typeface.DEFAULT_BOLD
-                setTextColor(Color.rgb(35, 74, 108))
+                setTextColor(Color.rgb(228, 232, 240))
                 maxLines = 1
             }, LinearLayout.LayoutParams(-1, -2))
             setOnClickListener { action() }
@@ -313,9 +313,9 @@ class MainActivity : Activity() {
             text = "الكامل أونلاين  •  حقوق محمد كامل - 772072056"
             textSize = 12f
             gravity = Gravity.CENTER
-            setTextColor(Color.rgb(105, 112, 120))
+            setTextColor(Color.rgb(184, 192, 207))
             setPadding(8.dp(), 11.dp(), 8.dp(), 11.dp())
-            setBackgroundColor(Color.WHITE)
+            setBackgroundColor(Color.rgb(35, 43, 59))
         }
 
         root.addView(header)
@@ -622,48 +622,43 @@ class MainActivity : Activity() {
             }
             pair.forEach { (icon, label, description, action) ->
                 val tile = LinearLayout(this).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    gravity = Gravity.CENTER_VERTICAL
-                    setPadding(11.dp(), 12.dp(), 11.dp(), 12.dp())
-                    background = roundedBackground(Color.WHITE, Color.rgb(211, 228, 242), 1.dp())
-                    elevation = 3.dp().toFloat()
+                    orientation = LinearLayout.VERTICAL
+                    gravity = Gravity.CENTER
+                    setPadding(10.dp(), 13.dp(), 10.dp(), 12.dp())
+                    background = roundedBackground(Color.rgb(57, 67, 86), Color.rgb(77, 89, 111), 1.dp())
+                    elevation = 7.dp().toFloat()
                     isClickable = true
                     isFocusable = true
                     setOnClickListener { action() }
                 }
                 val iconBox = TextView(this).apply {
                     text = icon
-                    textSize = 25f
+                    textSize = 32f
                     gravity = Gravity.CENTER
-                    setTextColor(Color.rgb(174, 124, 34))
-                    background = roundedBackground(Color.rgb(255, 248, 232), Color.rgb(245, 231, 199), 1.dp())
+                    setTextColor(Color.rgb(237, 204, 151))
+                    background = roundedBackground(Color.rgb(48, 57, 75), Color.rgb(69, 80, 101), 1.dp())
                 }
-                tile.addView(iconBox, LinearLayout.LayoutParams(44.dp(), 48.dp()).apply {
-                    marginStart = 9.dp()
+                tile.addView(iconBox, LinearLayout.LayoutParams(58.dp(), 58.dp()).apply {
+                    bottomMargin = 10.dp()
                 })
-                val labels = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL
-                    gravity = Gravity.CENTER_VERTICAL
-                }
-                labels.addView(TextView(this).apply {
+                tile.addView(TextView(this).apply {
                     text = label
-                    textSize = 14.5f
+                    textSize = 15f
                     typeface = Typeface.DEFAULT_BOLD
-                    setTextColor(Color.rgb(18, 57, 96))
-                    gravity = Gravity.RIGHT
+                    setTextColor(Color.rgb(235, 238, 245))
+                    gravity = Gravity.CENTER
                     maxLines = 2
-                })
-                labels.addView(TextView(this).apply {
+                }, LinearLayout.LayoutParams(-1, -2))
+                tile.addView(TextView(this).apply {
                     text = description
-                    textSize = 11.5f
-                    setTextColor(Color.rgb(105, 124, 145))
-                    gravity = Gravity.RIGHT
-                    setPadding(0, 4.dp(), 0, 0)
+                    textSize = 11f
+                    setTextColor(Color.rgb(190, 198, 213))
+                    gravity = Gravity.CENTER
+                    setPadding(0, 5.dp(), 0, 0)
                     maxLines = 2
-                })
-                tile.addView(labels, LinearLayout.LayoutParams(0, -2, 1f))
-                row.addView(tile, LinearLayout.LayoutParams(0, 94.dp(), 1f).apply {
-                    setMargins(4.dp(), 0, 4.dp(), 9.dp())
+                }, LinearLayout.LayoutParams(-1, -2))
+                row.addView(tile, LinearLayout.LayoutParams(0, 142.dp(), 1f).apply {
+                    setMargins(5.dp(), 0, 5.dp(), 12.dp())
                 })
             }
             if (pair.size == 1) row.addView(View(this), LinearLayout.LayoutParams(0, 1.dp(), 1f))
