@@ -2033,7 +2033,18 @@ class MainActivity : Activity() {
                 roundedBackground(Color.WHITE, Color.rgb(213, 224, 234), 1.dp())
             }
             setPadding(16.dp(), 0, 16.dp(), 0)
-            setOnClickListener { action() }
+            alpha = 0f
+            translationY = 8.dp().toFloat()
+            animate().alpha(1f).translationY(0f).setDuration(220).start()
+            setOnClickListener {
+                isEnabled = false
+                animate().scaleX(0.98f).scaleY(0.98f).setDuration(70).withEndAction {
+                    animate().scaleX(1f).scaleY(1f).setDuration(100).withEndAction {
+                        isEnabled = true
+                        action()
+                    }.start()
+                }.start()
+            }
         }
         content.addView(button, LinearLayout.LayoutParams(-1, 52.dp()).apply {
             setMargins(0, 0, 0, 9.dp())
