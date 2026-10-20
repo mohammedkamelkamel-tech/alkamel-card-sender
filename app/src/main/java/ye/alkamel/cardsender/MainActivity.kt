@@ -250,41 +250,20 @@ class MainActivity : Activity() {
         top.addView(titleBox, LinearLayout.LayoutParams(0, -2, 1f))
 
         val menu = TextView(this).apply {
-            text = "⋮"
-            textSize = 30f
+            text = "☰"
+            textSize = 27f
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
             setPadding(8.dp(), 0, 8.dp(), 0)
+            contentDescription = "القائمة الرئيسية"
+            setOnClickListener { showNavigationMenu() }
         }
-        top.addView(menu, LinearLayout.LayoutParams(40.dp(), 52.dp()))
-
-        header.addView(top)
-
-        val licenseBox = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(12.dp(), 9.dp(), 12.dp(), 9.dp())
-            background = roundedBackground(Color.argb(45, 255, 255, 255), 0, 0)
-        }
-        licenseBox.addView(TextView(this).apply {
-            text = "●"
-            textSize = 11f
-            setTextColor(Color.rgb(130, 240, 170))
-            setPadding(0, 0, 7.dp(), 0)
-        })
-        licenseBox.addView(TextView(this).apply {
-            text = LicenseManager.remainingText(this@MainActivity)
-            textSize = 13f
-            setTextColor(Color.WHITE)
-        })
-        header.addView(licenseBox, LinearLayout.LayoutParams(-1, -2).apply {
-            topMargin = 13.dp()
-        })
+        top.addView(menu, LinearLayout.LayoutParams(48.dp(), 52.dp()))
 
         val navScroll = HorizontalScrollView(this).apply {
             setBackgroundColor(Color.WHITE)
             isHorizontalScrollBarEnabled = false
-            setPadding(8.dp(), 8.dp(), 8.dp(), 8.dp())
+            setPadding(8.dp(), 7.dp(), 8.dp(), 7.dp())
         }
         val nav = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -292,16 +271,10 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
         }
         nav.addView(navButton("🏠 الرئيسية") { showDashboard() })
-        nav.addView(navButton("➕ إضافة") { showAddCards() })
-        nav.addView(navButton("💳 الفئات") { showCategories() })
-        nav.addView(navButton("🔗 الربط") { showAlternateNumbers() })
         nav.addView(navButton("📦 المخزون") { showStock() })
-        nav.addView(navButton("💰 المبيعات") { showSales() })
-        nav.addView(navButton("📋 سجل العمليات") { showOperations() })
-        nav.addView(navButton("✉️ رسالة الكرت") { showMessageSettings() })
-        nav.addView(navButton("⚙️ الخدمات") { showServices() })
-        nav.addView(navButton("🌐 MikroTik") { startActivity(Intent(this, MikrotikDashboardActivity::class.java)) })
-        nav.addView(navButton("💾 النسخ") { showBackup() })
+        nav.addView(navButton("✉️ الإرسال") { showServices() })
+        nav.addView(navButton("📊 التقارير") { showSales() })
+        nav.addView(navButton("🌐 الشبكة") { startActivity(Intent(this, MikrotikDashboardActivity::class.java)) })
         navScroll.addView(nav, LinearLayout.LayoutParams(-2, -1))
 
         val scroll = ScrollView(this)
@@ -326,6 +299,57 @@ class MainActivity : Activity() {
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         root.addView(footer, LinearLayout.LayoutParams(-1, -2))
         setContentView(root)
+    }
+
+    private fun showNavigationMenu() {
+        val groups = arrayOf(
+            "🏠 الرئيسية",
+            "📦 إدارة الكروت والمخزون",
+            "✉️ الإرسال والخدمات",
+            "📊 التقارير والسجلات",
+            "🌐 إدارة الشبكة",
+            "💾 النسخ الاحتياطي",
+            "⚙️ الإعدادات والتنبيهات"
+        )
+        android.app.AlertDialog.Builder(this)
+            .setTitle("قائمة الكامل أونلاين")
+            .setItems(groups) { _, which ->
+                when (which) {
+                    0 -> showDashboard()
+                    1 -> showNavigationItems(
+                        "إدارة الكروت والمخزون",
+                        arrayOf("➕ إضافة كروت", "💳 الفئات", "🔗 ربط رقم بديل", "📦 المخزون", "📱 مخزون SIM1 / SIM2"),
+                        arrayOf({ showAddCards() }, { showCategories() }, { showAlternateNumbers() }, { showStock() }, { showSimInventory() })
+                    )
+                    2 -> showNavigationItems(
+                        "الإرسال والخدمات",
+                        arrayOf("⚙️ حالة الخدمات وطابور الإرسال", "✉️ إعدادات رسالة الكرت", "🔔 تنبيه نقص المخزون"),
+                        arrayOf({ showServices() }, { showMessageSettings() }, { showStockAlertSettings() })
+                    )
+                    3 -> showNavigationItems(
+                        "التقارير والسجلات",
+                        arrayOf("💰 المبيعات", "📊 مبيعات SIM1 / SIM2", "📋 سجل العمليات"),
+                        arrayOf({ showSales() }, { showSimSales() }, { showOperations() })
+                    )
+                    4 -> startActivity(Intent(this, MikrotikDashboardActivity::class.java))
+                    5 -> showBackup()
+                    6 -> showNavigationItems(
+                        "الإعدادات والتنبيهات",
+                        arrayOf("🔔 إعدادات تنبيه نقص المخزون", "🔗 ربط الأرقام البديلة", "💾 النسخ الاحتياطي"),
+                        arrayOf({ showStockAlertSettings() }, { showAlternateNumbers() }, { showBackup() })
+                    )
+                }
+            }
+            .setNegativeButton("إغلاق", null)
+            .show()
+    }
+
+    private fun showNavigationItems(title: String, labels: Array<String>, actions: Array<() -> Unit>) {
+        android.app.AlertDialog.Builder(this)
+            .setTitle(title)
+            .setItems(labels) { _, which -> actions[which].invoke() }
+            .setNegativeButton("رجوع") { _, _ -> showNavigationMenu() }
+            .show()
     }
 
     private fun navButton(text: String, action: () -> Unit) = TextView(this).apply {
