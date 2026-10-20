@@ -300,6 +300,7 @@ class MainActivity : Activity() {
         nav.addView(navButton("📋 سجل العمليات") { showOperations() })
         nav.addView(navButton("✉️ رسالة الكرت") { showMessageSettings() })
         nav.addView(navButton("⚙️ الخدمات") { showServices() })
+        nav.addView(navButton("🌐 MikroTik") { startActivity(Intent(this, MikrotikDashboardActivity::class.java)) })
         nav.addView(navButton("💾 النسخ") { showBackup() })
         navScroll.addView(nav, LinearLayout.LayoutParams(-2, -1))
 
@@ -506,6 +507,7 @@ class MainActivity : Activity() {
         addButton("⚙️ تفعيل / إيقاف الخدمات") { showServices() }
 
         addSectionTitle("إدارة سريعة")
+        addButton("🌐 لوحة تحكم MikroTik", true) { startActivity(Intent(this, MikrotikDashboardActivity::class.java)) }
         addButton("➕ إضافة فئة كروت جديدة", true) { showCategories() }
         addButton("🔗 ربط رقم بديل برقم جوال", true) { showAlternateNumbers() }
         addButton("📦 عرض أرقام الكروت المتبقية لكل فئة", true) { showStock() }
