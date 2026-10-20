@@ -252,7 +252,7 @@ class MikrotikDashboardActivity : Activity() {
     private fun field(hintText: String) = EditText(this).apply {
         hint = hintText
         textSize = 15f
-        singleLine = true
+        maxLines = 1
         setTextColor(Color.DKGRAY)
         setHintTextColor(Color.GRAY)
         setPadding(dp(10), dp(6), dp(10), dp(6))
