@@ -530,19 +530,7 @@ class MainActivity : Activity() {
         addText(if (ServiceControl.isEnabled(this)) "🟢 الخدمات مفعّلة — الإرسال يعمل" else "🔴 الخدمات متوقفة — وضع الصيانة")
         addButton("⚙️ تفعيل / إيقاف الخدمات") { showServices() }
 
-        addSectionTitle("إدارة سريعة")
-        addButton("🌐 لوحة تحكم MikroTik", true) { startActivity(Intent(this, MikrotikDashboardActivity::class.java)) }
-        addButton("➕ إضافة فئة كروت جديدة", true) { showCategories() }
-        addButton("🔗 ربط رقم بديل برقم جوال", true) { showAlternateNumbers() }
-        addButton("📦 عرض أرقام الكروت المتبقية لكل فئة", true) { showStock() }
-        addButton("📱 مخزون SIM1 / SIM2", true) { showSimInventory() }
-        addButton("📊 مبيعات SIM1 / SIM2") { showSimSales() }
-
-        addSectionTitle("اختصارات")
-        addButton("➕ إضافة كروت جديدة") { showAddCards() }
-        addButton("💰 معرفة الكروت التي تم بيعها") { showSales() }
-        addButton("📋 عرض سجل الإرسال والعمليات") { showOperations() }
-        addButton("🔔 إعدادات تنبيه نقص المخزون") { showStockAlertSettings() }
+        addDashboardActionGrid()
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
             if (BackgroundHelper.isIgnoringBatteryOptimizations(this)) {
@@ -579,6 +567,62 @@ class MainActivity : Activity() {
         }
 
         refreshDashboardStock()
+    }
+
+    private fun addDashboardActionGrid() {
+        addSectionTitle("الوصول السريع")
+        addText("اختر القسم المطلوب من بطاقات واضحة وسريعة.")
+        val actions = listOf(
+            Triple("🌐 MikroTik", "إدارة ومراقبة الشبكة", { startActivity(Intent(this, MikrotikDashboardActivity::class.java)) }),
+            Triple("➕ إضافة كروت", "إدخال كروت جديدة للمخزون", { showAddCards() }),
+            Triple("💳 فئات الكروت", "إدارة الفئات والأسعار", { showCategories() }),
+            Triple("📦 المخزون", "الكروت المتبقية لكل فئة", { showStock() }),
+            Triple("🔗 ربط الأرقام", "إدارة الأرقام البديلة", { showAlternateNumbers() }),
+            Triple("📱 مخزون الشرائح", "متابعة SIM1 وSIM2", { showSimInventory() }),
+            Triple("💰 المبيعات", "عرض الكروت المباعة", { showSales() }),
+            Triple("📊 تقارير الشرائح", "مبيعات SIM1 وSIM2", { showSimSales() }),
+            Triple("📋 سجل العمليات", "مراجعة الإرسال والحركة", { showOperations() }),
+            Triple("🔔 تنبيهات المخزون", "ضبط تنبيه نقص الكروت", { showStockAlertSettings() }),
+            Triple("✉️ خدمات الإرسال", "حالة الخدمة وطابور الإرسال", { showServices() }),
+            Triple("💾 النسخ الاحتياطي", "إنشاء نسخة أو استعادتها", { showBackup() })
+        )
+        actions.chunked(2).forEach { pair ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutDirection = View.LAYOUT_DIRECTION_RTL
+                gravity = Gravity.TOP
+            }
+            pair.forEach { (label, description, action) ->
+                val tile = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    gravity = Gravity.RIGHT
+                    setPadding(14.dp(), 14.dp(), 14.dp(), 14.dp())
+                    background = roundedBackground(Color.WHITE, Color.rgb(218, 228, 237), 1.dp())
+                    isClickable = true
+                    isFocusable = true
+                    setOnClickListener { action() }
+                }
+                tile.addView(TextView(this).apply {
+                    text = label
+                    textSize = 15f
+                    typeface = Typeface.DEFAULT_BOLD
+                    setTextColor(Color.rgb(24, 78, 117))
+                    gravity = Gravity.RIGHT
+                })
+                tile.addView(TextView(this).apply {
+                    text = description
+                    textSize = 12.5f
+                    setTextColor(Color.rgb(100, 110, 120))
+                    gravity = Gravity.RIGHT
+                    setPadding(0, 6.dp(), 0, 0)
+                })
+                row.addView(tile, LinearLayout.LayoutParams(0, 86.dp(), 1f).apply {
+                    setMargins(4.dp(), 0, 4.dp(), 8.dp())
+                })
+            }
+            if (pair.size == 1) row.addView(View(this), LinearLayout.LayoutParams(0, 1.dp(), 1f))
+            content.addView(row, LinearLayout.LayoutParams(-1, -2))
+        }
     }
 
     private fun refreshDashboardStock() {
