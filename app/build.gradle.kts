@@ -9,8 +9,8 @@ android {
         applicationId = "ye.alkamel.cardsender"
         minSdk = 24
         targetSdk = 35
-        versionCode = 36
-        versionName = "1.20.0"
+        versionCode = 37
+        versionName = "1.21.0"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
