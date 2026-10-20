@@ -224,8 +224,11 @@ class MainActivity : Activity() {
         val logo = ImageView(this).apply {
             setImageResource(ye.alkamel.cardsender.R.drawable.alkamel_logo)
             scaleType = ImageView.ScaleType.CENTER_INSIDE
-            background = roundedBackground(Color.WHITE, 0, 0)
-            setPadding(7.dp(), 7.dp(), 7.dp(), 7.dp())
+            // Keep the existing logo visible, but blend it softly into the header.
+            background = android.graphics.drawable.ColorDrawable(Color.TRANSPARENT)
+            alpha = 0.58f
+            setPadding(2.dp(), 2.dp(), 2.dp(), 2.dp())
+            contentDescription = "شعار الكامل أونلاين"
         }
         top.addView(logo, LinearLayout.LayoutParams(58.dp(), 58.dp()).apply {
             marginStart = 10.dp()
