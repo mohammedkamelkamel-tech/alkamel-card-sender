@@ -32,9 +32,15 @@ class MikrotikApiClient(
             val out = BufferedOutputStream(s.getOutputStream())
             val input = BufferedInputStream(s.getInputStream())
             writeSentence(out, listOf("/login", "=name=$username", "=password=$password"))
-            val login = readSentence(input)
-            if (login.any { it.startsWith("!trap") } || login.none { it == "!done" }) {
-                throw IllegalStateException(login.firstOrNull { it.startsWith("=message=") }?.substringAfter("=")?.substringAfter("=") ?: "فشل تسجيل الدخول إلى MikroTik")
+            var loginDone = false
+            while (!loginDone) {
+                val login = readSentence(input)
+                if (login.any { it.startsWith("!trap") }) {
+                    val msg = login.firstOrNull { it.startsWith("=message=") }?.substringAfter("=message=").orEmpty()
+                    throw IllegalStateException(msg.ifBlank { "فشل تسجيل الدخول إلى MikroTik" })
+                }
+                loginDone = login.any { it == "!done" }
+                if (login.isEmpty()) throw IllegalStateException("لم يرد الراوتر على تسجيل الدخول")
             }
             val words = mutableListOf(path)
             attributes.forEach { (key, value) -> words += "=$key=$value" }
